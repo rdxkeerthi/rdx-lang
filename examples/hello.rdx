@@ -1,0 +1,4 @@
+sys.rdx {
+    call("Hello from RDX on Windows!");
+    call("Score loop completed.");
+}

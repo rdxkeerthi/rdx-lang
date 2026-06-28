@@ -1,0 +1,9 @@
+*.exe
+*.obj
+*.asm
+*.pdb
+*.ilk
+.vs/
+*.swp
+*.bak
+*~

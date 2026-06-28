@@ -1,0 +1,13 @@
+sys.rdx {
+    num score : 85;
+
+    if (score >= 90) {
+        call("Grade: A");
+    } else if (score >= 80) {
+        call("Grade: B");
+    } else if (score >= 70) {
+        call("Grade: C");
+    } else {
+        call("Grade: F");
+    }
+}
