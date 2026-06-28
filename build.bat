@@ -16,7 +16,7 @@ gcc --version | findstr "gcc"
 nasm --version
 
 :: ---------------------------------------------------------------------------
-::  BUILD: rdx.exe (the RDX compiler/interpreter)
+::  BUILD: rdxc.exe (the RDX compiler/interpreter)
 :: ---------------------------------------------------------------------------
 if "%1"=="" goto build_compiler
 if "%1"=="compiler" goto build_compiler
@@ -29,12 +29,12 @@ goto build_compiler
 :build_compiler
 echo.
 echo [rdx] Building compiler...
-gcc %CFLAGS% -o rdx.exe %SRCS% %LDFLAGS%
+gcc %CFLAGS% -o rdx_bin.exe %SRCS% %LDFLAGS%
 if errorlevel 1 (
     echo [rdx] BUILD FAILED
     exit /b 1
 )
-echo [rdx] Compiler built: rdx.exe
+echo [rdx] Compiler built: rdx_bin.exe
 goto :eof
 
 :: ---------------------------------------------------------------------------
@@ -72,11 +72,10 @@ goto :eof
 :: ---------------------------------------------------------------------------
 :build_hello
 call :build_compiler
-if errorlevel 1 goto :eof
-
-echo.
-echo [hello] Compiling examples\hello.rdx...
-rdx.exe examples\hello.rdx -o hello.asm
+if %errorlevel% neq 0 exit /b %errorlevel%
+echo [rdxc] Compiling and running examples\hello.rdx...
+call rdx.bat run examples\hello.rdx
+exit /b %errorlevel%
 if errorlevel 1 (
     echo [hello] Compile FAILED
     exit /b 1

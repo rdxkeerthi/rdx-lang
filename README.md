@@ -51,10 +51,10 @@ If `gcc` is not in your path, run these commands in your PowerShell terminal:
 $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
 
 # 2. Build the compiler
-gcc -std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2 -o rdx.exe src/main.c src/lexer.c src/parser.c src/codegen.c -lkernel32
+gcc -std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2 -o rdx_bin.exe src/main.c src/lexer.c src/parser.c src/codegen.c -lkernel32
 
 # 3. Compile the RDX source into a standalone Windows executable (.exe)
-rdx examples\hello.rdx
+.\rdx examples\hello.rdx
 
 # 4. Run the compiled executable
 .\hello.exe
@@ -63,7 +63,7 @@ rdx examples\hello.rdx
 You can also compile and run an RDX file immediately (without leaving an `.exe` file on disk) using the `run` command. This is useful for quickly testing scripts:
 
 ```powershell
-rdx run examples\hello.rdx
+.\rdx run examples\hello.rdx
 ```
 
 ---
