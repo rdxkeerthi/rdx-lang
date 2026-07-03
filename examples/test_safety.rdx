@@ -1,0 +1,22 @@
+sys.rdx {
+    call("=== Memory Safety & Error Handling Test ===")
+    
+    call("\n1. Testing division by zero inside safe block...")
+    num x = 100
+    num y = 0
+    safe {
+        num result = x / y
+        call("Result: " [result])
+    } fail err {
+        call("Caught exception: " [err])
+    }
+
+    call("\n2. Testing string out-of-bounds access...")
+    chr s = "hello"
+    safe {
+        chr c = chr_at(s, 10)
+        call("Char at 10: " [c])
+    } fail err {
+        call("Caught exception: " [err])
+    }
+}
