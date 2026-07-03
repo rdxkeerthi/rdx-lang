@@ -1,0 +1,8 @@
+sys.rdx {
+    num = 25
+    chr = "My name"
+    flt = "1.2"
+    blo = "true"
+    dob = "3.14159"
+    call("answer : " [num, chr, flt, blo, dob]);
+}

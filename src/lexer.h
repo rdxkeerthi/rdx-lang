@@ -15,10 +15,14 @@ typedef enum {
     /* Literals */
     TOK_NUM_LIT = 0,   /* 42            */
     TOK_STR_LIT,       /* "hello"       */
+    TOK_FLT_LIT,       /* 1.2           */
 
     /* Type keywords */
     TOK_NUM,           /* num           */
-    TOK_STR,           /* str           */
+    TOK_CHR,           /* chr           */
+    TOK_FLT,           /* flt           */
+    TOK_BLO,           /* blo           */
+    TOK_DOB,           /* dob           */
 
     /* Statement keywords */
     TOK_FN,            /* fn            */
@@ -50,7 +54,7 @@ typedef enum {
     TOK_GTE,           /* >=            */
 
     /* Assignment / declaration */
-    TOK_ASSIGN,        /* :             */
+    TOK_ASSIGN,        /* =             */
     TOK_ARROW,         /* ->            */
 
     /* Punctuation */
@@ -58,6 +62,8 @@ typedef enum {
     TOK_RPAREN,        /* )             */
     TOK_LBRACE,        /* {             */
     TOK_RBRACE,        /* }             */
+    TOK_LBRACKET,      /* [             */
+    TOK_RBRACKET,      /* ]             */
     TOK_SEMICOLON,     /* ;             */
     TOK_COMMA,         /* ,             */
     TOK_DOT,           /* .             */

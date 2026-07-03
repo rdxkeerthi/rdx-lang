@@ -1,0 +1,5 @@
+sys.rdx{
+    a = 10 
+    b = 12
+    call (a+b)  
+}

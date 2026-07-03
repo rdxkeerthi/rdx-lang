@@ -9,7 +9,7 @@ set PATH=%MINGW%;%PATH%
 :: Compiler flags
 set CFLAGS=-std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2
 set LDFLAGS=-lkernel32
-set SRCS=src\main.c src\lexer.c src\parser.c src\codegen.c
+set SRCS=src\main.c src\lexer.c src\parser.c src\analyzer.c src\codegen.c
 
 echo [build.bat] Toolchain check...
 gcc --version | findstr "gcc"
@@ -22,6 +22,7 @@ if "%1"=="" goto build_compiler
 if "%1"=="compiler" goto build_compiler
 if "%1"=="test_core" goto build_test_core
 if "%1"=="test_lexer" goto build_test_lexer
+if "%1"=="test_jit" goto build_test_jit
 if "%1"=="hello" goto build_hello
 if "%1"=="all" goto build_all
 goto build_compiler
@@ -43,7 +44,7 @@ goto :eof
 :build_test_core
 echo.
 echo [test_core] Building...
-gcc %CFLAGS% -DRDX_DEFINE_ENTRY -o test_core.exe src\test_core.c %LDFLAGS%
+gcc %CFLAGS% -o test_core.exe src\test_core.c %LDFLAGS%
 if errorlevel 1 (
     echo [test_core] BUILD FAILED
     exit /b 1
@@ -58,13 +59,28 @@ goto :eof
 :build_test_lexer
 echo.
 echo [test_lexer] Building...
-gcc %CFLAGS% -DRDX_DEFINE_ENTRY -o test_lexer.exe src\test_lexer.c src\lexer.c %LDFLAGS%
+gcc %CFLAGS% -o test_lexer.exe src\test_lexer.c src\lexer.c %LDFLAGS%
 if errorlevel 1 (
     echo [test_lexer] BUILD FAILED
     exit /b 1
 )
 echo [test_lexer] Running...
 test_lexer.exe
+goto :eof
+
+:: ---------------------------------------------------------------------------
+::  TEST: JIT prototype
+:: ---------------------------------------------------------------------------
+:build_test_jit
+echo.
+echo [test_jit] Building...
+gcc %CFLAGS% -e mainCRTStartup -o test_jit.exe src\rdx_jit.c %LDFLAGS%
+if errorlevel 1 (
+    echo [test_jit] BUILD FAILED
+    exit /b 1
+)
+echo [test_jit] Running...
+test_jit.exe
 goto :eof
 
 :: ---------------------------------------------------------------------------
@@ -107,5 +123,6 @@ goto :eof
 call :build_compiler
 call build.bat test_core
 call build.bat test_lexer
+call build.bat test_jit
 call build.bat hello
 goto :eof

@@ -1,0 +1,11 @@
+sys.rdx{
+    // start of program
+    num = 25           // numbers 
+    chr = "My name"    // character 
+    flt = 1.2          // floating value
+    blo = TRUE         // boolean
+    dob = 1.2345       // double
+    
+    // print statement 
+    call("answer : " [blo]); 
+}

@@ -1,0 +1,11 @@
+sys.rdx{
+    // if else demonstration
+    num = 10
+    blo = TRUE
+    
+    if (num > 5) {
+        call("num is greater than 5" []);
+    } else {
+        call("num is not greater than 5" []);
+    }
+}

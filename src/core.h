@@ -47,7 +47,7 @@ typedef long long           isize;
 /* bool — guard against GCC's built-in _Bool/bool in C99+ */
 #ifndef __cplusplus
 #ifndef bool
-typedef i32                 bool;
+#define bool i32
 #endif
 #endif
 #ifndef TRUE

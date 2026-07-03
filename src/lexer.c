@@ -74,7 +74,10 @@ typedef struct { const char *word; TokenType type; } KWEntry;
 
 static const KWEntry kw_table[] = {
     { "num",       TOK_NUM       },
-    { "str",       TOK_STR       },
+    { "chr",       TOK_CHR       },
+    { "flt",       TOK_FLT       },
+    { "blo",       TOK_BLO       },
+    { "dob",       TOK_DOB       },
     { "fn",        TOK_FN        },
     { "return",    TOK_RETURN    },
     { "if",        TOK_IF        },
@@ -151,19 +154,31 @@ static void lx_scan_ident(Lexer *L) {
     lx_emit(L, lx_lookup_kw(word), word, start_line);
 }
 
-/* --- Integer literal (decimal only in V1) --- */
+/* --- Integer or Float literal --- */
 static void lx_scan_number(Lexer *L) {
     int   start_line = L->line;
     usize start      = L->pos;
-    while (L->pos < L->length && lx_is_digit(lx_peek(L)))
-        L->pos++;
+    bool is_float = FALSE;
+    
+    while (L->pos < L->length) {
+        char c = lx_peek(L);
+        if (lx_is_digit(c)) {
+            L->pos++;
+        } else if (c == '.' && lx_is_digit(lx_peek2(L))) {
+            is_float = TRUE;
+            L->pos++;
+        } else {
+            break;
+        }
+    }
+    
     usize len = L->pos - start;
     if (len > 63) len = 63;
 
     char buf[64];
     my_memcpy(buf, L->source + start, len);
     buf[len] = '\0';
-    lx_emit(L, TOK_NUM_LIT, buf, start_line);
+    lx_emit(L, is_float ? TOK_FLT_LIT : TOK_NUM_LIT, buf, start_line);
 }
 
 /* --- String literal  "..."  with escape sequences ---
@@ -254,10 +269,12 @@ static void lx_next(Lexer *L) {
         case ')': lx_emit(L, TOK_RPAREN,    ")",  cur_line); break;
         case '{': lx_emit(L, TOK_LBRACE,    "{",  cur_line); break;
         case '}': lx_emit(L, TOK_RBRACE,    "}",  cur_line); break;
+        case '[': lx_emit(L, TOK_LBRACKET,  "[",  cur_line); break;
+        case ']': lx_emit(L, TOK_RBRACKET,  "]",  cur_line); break;
         case ';': lx_emit(L, TOK_SEMICOLON, ";",  cur_line); break;
         case ',': lx_emit(L, TOK_COMMA,     ",",  cur_line); break;
         case '.': lx_emit(L, TOK_DOT,       ".",  cur_line); break;
-        case ':': lx_emit(L, TOK_ASSIGN,    ":",  cur_line); break;
+        case ':': lx_emit(L, TOK_UNKNOWN,   ":",  cur_line); break;
 
         /* Slash — division operator (// already consumed by lx_skip) */
         case '/': lx_emit(L, TOK_SLASH, "/", cur_line); break;
@@ -272,14 +289,13 @@ static void lx_next(Lexer *L) {
             }
             break;
 
-        /* == only (bare = is not valid RDX syntax) */
+        /* = or == */
         case '=':
             if (lx_peek(L) == '=') {
                 lx_advance(L);
                 lx_emit(L, TOK_EQ, "==", cur_line);
             } else {
-                lx_error(L, cur_line, "unexpected '=' — did you mean '=='?");
-                lx_emit(L, TOK_UNKNOWN, "=", cur_line);
+                lx_emit(L, TOK_ASSIGN, "=", cur_line);
             }
             break;
 
@@ -347,8 +363,8 @@ int lexer_tokenize(Lexer *L) {
 
 const char *token_type_name(TokenType t) {
     static const char *names[TOK_COUNT + 1] = {
-        "TOK_NUM_LIT",  "TOK_STR_LIT",
-        "TOK_NUM",      "TOK_STR",
+        "TOK_NUM_LIT",  "TOK_STR_LIT",   "TOK_FLT_LIT",
+        "TOK_NUM",      "TOK_CHR",       "TOK_FLT",       "TOK_BLO",       "TOK_DOB",
         "TOK_FN",       "TOK_RETURN",    "TOK_IF",        "TOK_ELSE",
         "TOK_LOOP",     "TOK_BLUEPRINT", "TOK_ALLOC",     "TOK_DROP",
         "TOK_SYS",      "TOK_CALL",
@@ -359,6 +375,7 @@ const char *token_type_name(TokenType t) {
         "TOK_ASSIGN",   "TOK_ARROW",
         "TOK_LPAREN",   "TOK_RPAREN",
         "TOK_LBRACE",   "TOK_RBRACE",
+        "TOK_LBRACKET", "TOK_RBRACKET",
         "TOK_SEMICOLON","TOK_COMMA",     "TOK_DOT",
         "TOK_EOF",      "TOK_UNKNOWN",
         NULL
