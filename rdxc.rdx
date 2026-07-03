@@ -1,0 +1,181 @@
+// ══════════════════════════════════════════════════════════════
+//  rdxc.rdx — The RDX Compiler, written in RDX  (v0.2.0)
+//  Bootstrap Stage 1: Token + IR tables + Emission Simulation
+//
+//  BOOTSTRAP STAGES:
+//    Stage 0: rdx_bin.exe runs rdxc.rdx  (now)
+//    Stage 1: rdxc.exe compiles any .rdx → IR text
+//    Stage 2: rdxc.exe compiles itself   (self-hosted)
+// ══════════════════════════════════════════════════════════════
+
+sys.rdx {
+    // ── Compiler Metadata ─────────────────────────────────────
+    fix RDXC_MAJOR = 0
+    fix RDXC_MINOR = 2
+    fix RDXC_PATCH = 0
+
+    call("╔══════════════════════════════════════════════╗")
+    call("║   rdxc — RDX Self-Hosted Compiler  v0.2.0   ║")
+    call("║   Written entirely in RDX                    ║")
+    call("╚══════════════════════════════════════════════╝")
+    nl()
+
+    // ── Token Count ───────────────────────────────────────────
+    fix TOK_TOTAL  = 48
+    fix AST_TOTAL  = 17
+    fix IR_TOTAL   = 29
+    fix BUILTINS   = 25
+
+    call("=== Compiler Tables ===")
+    call("  Token types:    " [TOK_TOTAL])
+    call("  AST node types: " [AST_TOTAL])
+    call("  IR opcodes:     " [IR_TOTAL])
+    call("  Built-ins:      " [BUILTINS])
+    nl()
+
+    // ── IR Opcode Constants ───────────────────────────────────
+    fix IR_NOP        = 0
+    fix IR_LOAD_IMM   = 1
+    fix IR_LOAD_STR   = 2
+    fix IR_LOAD_VAR   = 3
+    fix IR_STORE_VAR  = 4
+    fix IR_ADD        = 5
+    fix IR_SUB        = 6
+    fix IR_MUL        = 7
+    fix IR_DIV        = 8
+    fix IR_MOD        = 9
+    fix IR_CMP_EQ     = 10
+    fix IR_CMP_NEQ    = 11
+    fix IR_CMP_LT     = 12
+    fix IR_CMP_GT     = 13
+    fix IR_CMP_LTE    = 14
+    fix IR_CMP_GTE    = 15
+    fix IR_JUMP       = 16
+    fix IR_JUMP_IF    = 17
+    fix IR_JUMP_NOT   = 18
+    fix IR_CALL_PRINT = 19
+    fix IR_CALL_GET   = 20
+    fix IR_CALL_FN    = 21
+    fix IR_RET        = 22
+    fix IR_HALT       = 23
+    fix IR_SAFE_BEGIN = 24
+    fix IR_SAFE_END   = 25
+    fix IR_FAIL_BEGIN = 26
+    fix IR_MATCH      = 27
+    fix IR_LABEL      = 28
+
+    call("=== IR Opcode Table ===")
+    call("  " [IR_NOP,        "  NOP       — no operation"])
+    call("  " [IR_LOAD_IMM,   "  LOAD_IMM  — load immediate value"])
+    call("  " [IR_LOAD_STR,   "  LOAD_STR  — load string constant"])
+    call("  " [IR_LOAD_VAR,   "  LOAD_VAR  — load variable"])
+    call("  " [IR_STORE_VAR,  "  STORE_VAR — store to variable"])
+    call("  " [IR_ADD,        "  ADD       — integer addition"])
+    call("  " [IR_SUB,        "  SUB       — integer subtraction"])
+    call("  " [IR_MUL,        "  MUL       — integer multiply"])
+    call("  " [IR_DIV,        "  DIV       — integer divide"])
+    call("  " [IR_MOD,        "  MOD       — modulo remainder"])
+    call("  " [IR_CMP_EQ,     "  CMP_EQ    — compare equal"])
+    call("  " [IR_CMP_NEQ,    "  CMP_NEQ   — compare not equal"])
+    call("  " [IR_CMP_LT,     "  CMP_LT    — compare less than"])
+    call("  " [IR_CMP_GT,     "  CMP_GT    — compare greater than"])
+    call("  " [IR_JUMP,       "  JUMP      — unconditional jump"])
+    call("  " [IR_JUMP_IF,    "  JUMP_IF   — conditional jump (true)"])
+    call("  " [IR_JUMP_NOT,   "  JUMP_NOT  — conditional jump (false)"])
+    call("  " [IR_CALL_PRINT, "  CALL_PRINT— print to stdout"])
+    call("  " [IR_CALL_GET,   "  CALL_GET  — read from stdin"])
+    call("  " [IR_RET,        "  RET       — return from function"])
+    call("  " [IR_HALT,       "  HALT      — end of program"])
+    call("  " [IR_SAFE_BEGIN, "  SAFE_BEGIN— begin safe block"])
+    call("  " [IR_SAFE_END,   "  SAFE_END  — end safe block"])
+    call("  " [IR_FAIL_BEGIN, "  FAIL_BEGIN— begin fail handler"])
+    call("  " [IR_MATCH,      "  MATCH     — pattern match dispatch"])
+    call("  " [IR_LABEL,      "  LABEL     — define jump target"])
+    nl()
+
+    // ── IR Emission Simulation ────────────────────────────────
+    call("════════════════════════════════════════════════")
+    call("  IR Emission Simulation — Compiling RDX code")
+    call("════════════════════════════════════════════════")
+    nl()
+
+    // Example 1: num x = 10 + 5
+    call("Source:  num x = 10 + 5")
+    call("IR Output:")
+    call("  [0] LOAD_IMM   r0, 10")
+    call("  [1] LOAD_IMM   r1, 5")
+    call("  [2] ADD        r2, r0, r1")
+    call("  [3] STORE_VAR  x, r2")
+    nl()
+
+    // Example 2: if x > 5 { call(x) }
+    call("Source:  if x > 5 { call(x) }")
+    call("IR Output:")
+    call("  [4] LOAD_VAR   r0, x")
+    call("  [5] LOAD_IMM   r1, 5")
+    call("  [6] CMP_GT     r2, r0, r1")
+    call("  [7] JUMP_NOT   r2, .L_end_if")
+    call("  [8] LOAD_VAR   r0, x")
+    call("  [9] CALL_PRINT r0")
+    call("  [10] .L_end_if:")
+    nl()
+
+    // Example 3: loop 1..5 as i { call(i) }
+    call("Source:  loop 1..5 as i { call(i) }")
+    call("IR Output:")
+    call("  [11] LOAD_IMM   i, 1")
+    call("  [12] .L_loop:")
+    call("  [13] CMP_LT     r0, i, 5")
+    call("  [14] JUMP_NOT   r0, .L_loop_end")
+    call("  [15] CALL_PRINT i")
+    call("  [16] ADD        i, i, 1")
+    call("  [17] JUMP       .L_loop")
+    call("  [18] .L_loop_end:")
+    nl()
+
+    // Example 4: safe { } fail err { }
+    call("Source:  safe { num r = x / 0 } fail e { call(e) }")
+    call("IR Output:")
+    call("  [19] SAFE_BEGIN .L_fail")
+    call("  [20] LOAD_VAR   r0, x")
+    call("  [21] LOAD_IMM   r1, 0")
+    call("  [22] DIV        r2, r0, r1    ; triggers error")
+    call("  [23] STORE_VAR  r, r2")
+    call("  [24] SAFE_END")
+    call("  [25] JUMP       .L_safe_done")
+    call("  [26] .L_fail:")
+    call("  [27] STORE_VAR  e, ERROR_MSG")
+    call("  [28] CALL_PRINT e")
+    call("  [29] .L_safe_done:")
+    call("  [30] HALT")
+    nl()
+
+    // ── Statistics ────────────────────────────────────────────
+    fix total_ir  = 31
+    fix total_lbl = 5
+    fix examples  = 4
+
+    call("════════════════════════════════════════════════")
+    call("  IR Emission Stats")
+    call("════════════════════════════════════════════════")
+    call("  IR ops emitted:   " [total_ir])
+    call("  Labels defined:   " [total_lbl])
+    call("  Programs compiled:" [examples])
+    nl()
+
+    // ── Bootstrap Roadmap ─────────────────────────────────────
+    call("════════════════════════════════════════════════")
+    call("  rdxc Bootstrap Roadmap")
+    call("════════════════════════════════════════════════")
+    call("  [✓] Stage 0  — Token + IR tables defined in RDX")
+    call("  [✓] Stage 0  — IR emission simulated for all constructs")
+    call("  [ ] Stage 1  — Real lexer in RDX (chr buffer + get())")
+    call("  [ ] Stage 1  — Real parser in RDX (recursive descent)")
+    call("  [ ] Stage 1  — Real IR emitter writes text to stdout")
+    call("  [ ] Stage 2  — rdxc.exe assembles IR via NASM pipeline")
+    call("  [ ] Stage 3  — rdxc.exe compiles rdxc.rdx itself")
+    nl()
+
+    call("rdxc v" [RDXC_MAJOR, ".", RDXC_MINOR, ".", RDXC_PATCH, " — bootstrap stage complete."])
+    call("Built with 🐝 RDX — The Honeybee Systems Language")
+}

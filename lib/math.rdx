@@ -1,0 +1,58 @@
+// ── lib/math.rdx ──────────────────────────────────────────────
+// RDX Standard Math Library
+// Usage:  load math
+//
+// Built-in functions wrapped as RDX-documented constants + helpers.
+// These can be copy-pasted into any RDX program.
+
+sys.rdx {
+    // ─── Constants ───────────────────────────────────────────
+    fix PI    = 3          // integer approximation (full: 3.14159)
+    fix E     = 2          // Euler's number approx
+    fix PHI   = 1          // Golden ratio approx
+    fix INF   = 999999999  // practical infinity sentinel
+
+    // ─── Demonstration of all math built-ins ─────────────────
+    call("=== RDX math.rdx Standard Library ===")
+    nl()
+
+    // abs(x) — absolute value
+    num neg = 0 - 42
+    call("abs(-42)    = " [abs(neg)])
+
+    // max / min
+    call("max(3, 7)   = " [max(3, 7)])
+    call("min(3, 7)   = " [min(3, 7)])
+
+    // pow(base, exp) — integer exponentiation
+    call("pow(2, 10)  = " [pow(2, 10)])
+    call("pow(3, 4)   = " [pow(3, 4)])
+
+    // sqrt(x) — integer Newton-Raphson square root
+    call("sqrt(144)   = " [sqrt(144)])
+    call("sqrt(225)   = " [sqrt(225)])
+
+    // clamp(v, lo, hi)
+    call("clamp(150,0,100) = " [clamp(150, 0, 100)])
+    call("clamp(-5, 0,100) = " [clamp(0-5, 0, 100)])
+
+    // mod(a, b) — modulo remainder
+    call("mod(17, 5)  = " [mod(17, 5)])
+    call("mod(100, 7) = " [mod(100, 7)])
+
+    // digits(n) — count decimal digits
+    call("digits(12345) = " [digits(12345)])
+
+    // sign(n) — -1, 0, or 1
+    num neg2 = 0 - 99
+    call("sign(-99)   = " [sign(neg2)])
+    call("sign(0)     = " [sign(0)])
+    call("sign(42)    = " [sign(42)])
+
+    // even / odd
+    call("even(8)     = " [even(8)])
+    call("odd(7)      = " [odd(7)])
+
+    nl()
+    call("math.rdx loaded successfully.")
+}

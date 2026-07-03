@@ -1,0 +1,58 @@
+// ── lib/sys.rdx ───────────────────────────────────────────────
+// RDX System Info & Utility Library
+// Usage:  load sys
+//
+// System-level utilities, platform constants, and diagnostics.
+
+sys.rdx {
+    call("=== RDX sys.rdx Standard Library ===")
+    nl()
+
+    // ─── Platform Constants ───────────────────────────────────
+    fix RDX_VERSION_MAJOR = 2
+    fix RDX_VERSION_MINOR = 0
+    fix RDX_VERSION_PATCH = 1
+    fix PLATFORM_WINDOWS  = 1
+    fix PLATFORM_LINUX    = 0
+    fix TRUE_VAL          = 1
+    fix FALSE_VAL         = 0
+
+    call("RDX Version: " [RDX_VERSION_MAJOR, "." , RDX_VERSION_MINOR, ".", RDX_VERSION_PATCH])
+    call("Platform:   Windows (bare-metal kernel32.dll)")
+    nl()
+
+    // ─── Type system ─────────────────────────────────────────
+    call("=== Type System ===")
+    num  n_val = 42
+    chr  c_val = "hello"
+    flt  f_val = 3.14
+    blo  b_val = true
+
+    call("num  type: " [type(n_val)])
+    call("chr  type: " [type(c_val)])
+    call("blo  type: " [type(b_val)])
+    nl()
+
+    // ─── Type casting ────────────────────────────────────────
+    call("=== Type Casting ===")
+    chr  numstr = "123"
+    num  parsed = tonum(numstr)
+    call("tonum('123') = " [parsed])
+
+    num  x = 456
+    chr  xstr = tostr(x)
+    call("tostr(456)   = '" [xstr, "'"])
+
+    nl()
+
+    // ─── Diagnostic helpers ───────────────────────────────────
+    call("=== Diagnostics ===")
+    num val1 = 100
+    call("digits(100)  = " [digits(val1)])
+    call("sign(-5)     = " [sign(0-5)])
+    call("bool(0)      = " [bool(0)])
+    call("bool(42)     = " [bool(42)])
+
+    nl()
+    call("sys.rdx loaded successfully.")
+}

@@ -1,8 +1,10 @@
 sys.rdx {
-    num = 25
+    // start of program
+    num = 25        // shorthand: type = value
     chr = "My name"
-    flt = "1.2"
-    blo = "true"
-    dob = "3.14159"
-    call("answer : " [num, chr, flt, blo, dob]);
+    flt = 3.14
+    blo = true
+    dob = 3.14159
+
+    call("answer : " [num, chr, flt, blo, dob])
 }

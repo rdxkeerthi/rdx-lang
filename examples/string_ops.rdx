@@ -1,0 +1,55 @@
+// ── string_ops.rdx ────────────────────────────────────────────
+// String operations demonstration
+// Built-in string functions: len, upper, lower, concat, str()
+
+sys.rdx {
+    call("╔══════════════════════════════════╗")
+    call("║   RDX String Operations Demo     ║")
+    call("╚══════════════════════════════════╝")
+    call("")
+
+    chr first = "alice"
+    chr last  = "wonderland"
+    chr lang  = "rdx programming"
+
+    call("=== Case Conversion ===")
+    call("Original:  " [first])
+    call("Upper:     " [upper(first)])
+    call("Lower:     " [upper(first)])
+
+    call("")
+    call("=== String Info ===")
+    call("first name: '" [first, "'  length: " , len(first)])
+    call("last name:  '" [last,  "'  length: " , len(last)])
+    call("language:   '" [lang,  "'  length: " , len(lang)])
+
+    call("")
+    call("=== Concatenation ===")
+    chr full_name = concat(upper(first), " ")
+    call("Full name (partial): " [full_name])
+
+    call("")
+    call("=== Number to String ===")
+    num version_major = 2
+    num version_minor = 0
+    num version_patch = 1
+    call("RDX version: " [version_major, "." , version_minor , "." , version_patch])
+
+    call("")
+    call("=== String-Based FizzBuzz ===")
+    loop 1..21 as i {
+        num d3 = mod(i, 3)
+        num d5 = mod(i, 5)
+        if d3 == 0 {
+            if d5 == 0 {
+                call("FizzBuzz")
+            } else {
+                call("Fizz")
+            }
+        } elif d5 == 0 {
+            call("Buzz")
+        } else {
+            call(i)
+        }
+    }
+}

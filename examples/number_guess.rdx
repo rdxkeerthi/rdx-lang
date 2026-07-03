@@ -1,0 +1,68 @@
+// ── examples/number_guess.rdx ─────────────────────────────────
+// Number Guessing Game
+// Interactive — uses get() to read guesses in a loop
+// Demonstrates: mut, loop, break, get(), if/elif
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX Number Guessing Game               ║")
+    call("║   Guess the secret number (1-100)!       ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    // Secret number — deterministic "random" for demo
+    fix SECRET   = 42
+    fix MAX_TRIES = 7
+
+    call("I'm thinking of a number between 1 and 100.")
+    call("You have " [MAX_TRIES, " tries. Good luck!"])
+    nl()
+
+    mut num tries = 0
+    mut num won   = 0
+
+    loop tries < MAX_TRIES {
+        tries = tries + 1
+
+        call("Try " [tries, " of " , MAX_TRIES, " — enter your guess:"])
+        num guess = get("> ")
+        nl()
+
+        if guess == SECRET {
+            won = 1
+            break
+        } elif guess < SECRET {
+            call("  ↑ Too low!")
+        } else {
+            call("  ↓ Too high!")
+        }
+
+        num tries_left = MAX_TRIES - tries
+        if tries_left > 0 {
+            call("  " [tries_left, " tries remaining."])
+        }
+        nl()
+    }
+
+    call("──────────────────────────────────────────")
+    nl()
+
+    if won == 1 {
+        call("🎉 CORRECT! You guessed " [SECRET, " in " , tries, " tries!"])
+        nl()
+        if tries == 1 {
+            call("🏆 Incredible! First try!")
+        } elif tries <= 3 {
+            call("🌟 Excellent — very few tries!")
+        } elif tries <= 5 {
+            call("👍 Good job!")
+        } else {
+            call("✓ You got it, just in time!")
+        }
+    } else {
+        call("💀 Game over! The secret number was: " [SECRET])
+    }
+
+    nl()
+    call("Rerun: .\\rdx_bin.exe examples\\number_guess.rdx")
+}

@@ -18,6 +18,8 @@ typedef struct {
     JitVar vars[128];
     int    var_count;
     int    had_error;
+    int    continue_flag;  /* set by NODE_CONTINUE — loop skips to next iter */
+    int    break_flag;     /* set by break sentinel (NODE_RETURN ival==-999)  */
 } JitEngine;
 
 /* Run the JIT execution engine directly on the AST root. */

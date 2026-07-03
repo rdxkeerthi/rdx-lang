@@ -1,0 +1,17 @@
+// Loop examples in RDX v2
+
+sys.rdx {
+    // Range loop: loop start..end as variable
+    call("Counting 1 to 5:")
+    loop 1..10 as i {
+        call(i)
+    }
+
+    // While-style loop
+    mut num x = 0
+    call("Doubling:")
+    loop x < 100 {
+        x = x + x + 1
+        call(x)
+    }
+}

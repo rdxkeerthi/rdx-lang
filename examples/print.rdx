@@ -1,5 +1,8 @@
 sys.rdx{
-    a = 10 
-    b = 12
-    call (a+b)  
+    mut num x = 0
+    call("Doubling:")
+    loop x < 10 {
+        x = x + x + 1
+        call(x)
+    }
 }

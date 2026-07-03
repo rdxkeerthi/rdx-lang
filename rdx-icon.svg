@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background -->
+  <rect width="256" height="256" rx="40" ry="40" fill="#1a1a2e"/>
+  
+  <!-- Hexagon wings (left) -->
+  <polygon points="52,88 78,74 104,88 104,116 78,130 52,116" 
+           fill="none" stroke="#f0a500" stroke-width="3" opacity="0.75"/>
+  <polygon points="52,88 78,74 104,88 104,116 78,130 52,116" 
+           fill="#f0a500" opacity="0.18"/>
+  
+  <!-- Hexagon wings (right) -->
+  <polygon points="152,88 178,74 204,88 204,116 178,130 152,116" 
+           fill="none" stroke="#f0a500" stroke-width="3" opacity="0.75"/>
+  <polygon points="152,88 178,74 204,88 204,116 178,130 152,116" 
+           fill="#f0a500" opacity="0.18"/>
+
+  <!-- Antennae -->
+  <line x1="114" y1="58" x2="96"  y2="34" stroke="#f0a500" stroke-width="3" stroke-linecap="round"/>
+  <line x1="142" y1="58" x2="160" y2="34" stroke="#f0a500" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="94"  cy="31" r="5" fill="#f0a500"/>
+  <circle cx="162" cy="31" r="5" fill="#f0a500"/>
+
+  <!-- Body (abdomen segments) -->
+  <!-- Head -->
+  <ellipse cx="128" cy="72" rx="22" ry="18" fill="#1a1a2e" stroke="#f0a500" stroke-width="2.5"/>
+  <!-- Eyes -->
+  <circle cx="119" cy="70" r="4" fill="#f0a500"/>
+  <circle cx="137" cy="70" r="4" fill="#f0a500"/>
+  <circle cx="119" cy="70" r="2" fill="#1a1a2e"/>
+  <circle cx="137" cy="70" r="2" fill="#1a1a2e"/>
+
+  <!-- Thorax (segment 1) -->
+  <ellipse cx="128" cy="100" rx="20" ry="14" fill="#f0a500"/>
+  <!-- Stripe 1 -->
+  <rect x="108" y="113" width="40" height="8" rx="4" fill="#1a1a2e"/>
+  <!-- Segment 2 -->
+  <ellipse cx="128" cy="128" rx="20" ry="13" fill="#f0a500"/>
+  <!-- Stripe 2 -->
+  <rect x="109" y="139" width="38" height="8" rx="4" fill="#1a1a2e"/>
+  <!-- Segment 3 -->
+  <ellipse cx="128" cy="155" rx="18" ry="12" fill="#f0a500"/>
+  <!-- Stripe 3 -->
+  <rect x="111" y="165" width="34" height="7" rx="3.5" fill="#1a1a2e"/>
+  <!-- Tail segment -->
+  <ellipse cx="128" cy="179" rx="13" ry="10" fill="#f0a500"/>
+  <!-- Stinger -->
+  <polygon points="128,188 122,200 134,200" fill="#f0a500"/>
+
+  <!-- RDX text -->
+  <text x="128" y="228" 
+        font-family="'Arial Black', 'Impact', sans-serif" 
+        font-size="30" font-weight="900"
+        fill="#f0a500" 
+        text-anchor="middle"
+        letter-spacing="4">RDX</text>
+  
+  <!-- Subtle hex pattern overlay (decorative) -->
+  <text x="128" y="246" 
+        font-family="'Arial', sans-serif" 
+        font-size="10"
+        fill="#f0a500" 
+        opacity="0.5"
+        text-anchor="middle"
+        letter-spacing="2">LANGUAGE</text>
+</svg>

@@ -1,0 +1,93 @@
+// ── examples/temperature.rdx ──────────────────────────────────
+// Multi-unit temperature converter
+// Demonstrates: arithmetic, loops, match, string output
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX Temperature Converter              ║")
+    call("║   Celsius • Fahrenheit • Kelvin          ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    // ─── Conversion table (Celsius as source) ────────────────
+    call("=== Celsius → Fahrenheit → Kelvin ===")
+    call("C°       F°       K")
+    call(repeat("-", 28))
+
+    loop 0..11 as step {
+        num c = step * 10     // 0, 10, 20, ... 100
+
+        // F = C * 9 / 5 + 32
+        num f = c * 9 / 5 + 32
+
+        // K = C + 273
+        num k = c + 273
+
+        call("" [c, "°C  →  " , f, "°F  →  ", k, "K"])
+    }
+
+    nl()
+    call("=== Special Temperature Points ===")
+    nl()
+
+    // Absolute zero
+    num abs_zero_c  = 0 - 273
+    num abs_zero_f  = abs_zero_c * 9 / 5 + 32
+    call("Absolute Zero:   " [abs_zero_c, "°C  =  ", abs_zero_f, "°F  =  0K"])
+
+    // Water freezing
+    num freeze_c = 0
+    num freeze_f = 32
+    num freeze_k = 273
+    call("Water Freezes:   " [freeze_c, "°C  =  " , freeze_f, "°F  =  ", freeze_k, "K"])
+
+    // Human body
+    num body_c = 37
+    num body_f = body_c * 9 / 5 + 32
+    num body_k = body_c + 273
+    call("Human Body:      " [body_c, "°C  =  " , body_f, "°F  =  ", body_k, "K"])
+
+    // Water boiling
+    num boil_c = 100
+    num boil_f = boil_c * 9 / 5 + 32
+    num boil_k = boil_c + 273
+    call("Water Boils:     " [boil_c, "°C  =  " , boil_f, "°F  =  ", boil_k, "K"])
+
+    // Sun surface (approx)
+    num sun_c = 5500
+    num sun_f = sun_c * 9 / 5 + 32
+    num sun_k = sun_c + 273
+    call("Sun Surface:     ~" [sun_c, "°C  =  " , sun_f, "°F  =  ", sun_k, "K"])
+
+    nl()
+    call("=== Fahrenheit → Celsius Table ===")
+    call("F°       C°")
+    call(repeat("-", 16))
+
+    loop 0..9 as fs {
+        num ff = fs * 20 + 32   // 32, 52, 72, ... 192
+        // C = (F - 32) * 5 / 9
+        num cc = (ff - 32) * 5 / 9
+        call("" [ff, "°F  →  " , cc, "°C"])
+    }
+
+    nl()
+    call("=== Temperature Classifier ===")
+    loop 0..7 as tc {
+        num temp = tc * 15     // 0, 15, 30, 45, 60, 75, 90
+
+        if temp <= 0 {
+            call("" [temp, "°C → Freezing 🧊"])
+        } elif temp <= 10 {
+            call("" [temp, "°C → Cold 🥶"])
+        } elif temp <= 20 {
+            call("" [temp, "°C → Cool 🌤"])
+        } elif temp <= 30 {
+            call("" [temp, "°C → Warm ☀"])
+        } elif temp <= 40 {
+            call("" [temp, "°C → Hot 🔥"])
+        } else {
+            call("" [temp, "°C → Extreme 🌋"])
+        }
+    }
+}

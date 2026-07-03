@@ -10,6 +10,11 @@ void* __stdcall VirtualAlloc(void* lpAddress, usize dwSize, unsigned int flAlloc
 int __stdcall VirtualFree(void* lpAddress, usize dwSize, unsigned int dwFreeType);
 void* __stdcall GetStdHandle(unsigned int nStdHandle);
 int __stdcall WriteFile(void* hFile, const void* lpBuffer, unsigned int nNumberOfBytesToWrite, unsigned int* lpNumberOfBytesWritten, void* lpOverlapped);
+int __stdcall ReadConsoleA(void* hConsoleInput, void* lpBuffer, unsigned int nNumberOfCharsToRead, unsigned int* lpNumberOfCharsRead, void* pInputControl);
+int __stdcall SetConsoleMode(void* hConsoleHandle, unsigned int dwMode);
+
+/* forward declaration — defined in §3 */
+static void jit_emit_and_run(const char *final_string);
 
 /* ============================================================
  *  §1  Symbol Table
@@ -103,6 +108,43 @@ static void flt_to_str(double val, char* buf) {
  *  §3  AST Evaluation & Execution
  * ============================================================ */
 
+/* Write a string directly (no JIT trampoline) — used for prompts */
+static void direct_write(const char *s) {
+    if (!s || !s[0]) return;
+    void *hOut = GetStdHandle((unsigned int)-11);  /* STD_OUTPUT_HANDLE */
+    unsigned int written = 0;
+    WriteFile(hOut, s, (unsigned int)my_strlen(s), &written, NULL);
+}
+
+/* Read one line of user input from stdin into buf (up to max_chars).
+   Also prints the prompt string first.
+   Returns number of chars read (excluding newline). */
+static int jit_read_line(const char *prompt, char *buf, int max_chars) {
+    /* Print prompt */
+    if (prompt && prompt[0]) direct_write(prompt);
+
+    void *hIn = GetStdHandle((unsigned int)-10);  /* STD_INPUT_HANDLE */
+
+    unsigned int chars_read = 0;
+    /* ReadConsoleA needs console mode — enable line input */
+    SetConsoleMode(hIn, 0x0003);  /* ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT */
+    ReadConsoleA(hIn, buf, (unsigned int)(max_chars - 1), &chars_read, NULL);
+
+    /* Strip trailing \r\n */
+    int len = (int)chars_read;
+    while (len > 0 && (buf[len-1] == '\r' || buf[len-1] == '\n')) len--;
+    buf[len] = '\0';
+    return len;
+}
+
+/* Convert string to i64 (simple atoi) */
+static i64 jit_str_to_i64(const char *s) {
+    i64 v = 0; int neg = 0;
+    if (*s == '-') { neg = 1; s++; }
+    while (*s >= '0' && *s <= '9') v = v * 10 + (*s++ - '0');
+    return neg ? -v : v;
+}
+
 /* Evaluates an expression node into a variable structure (as a temporary) */
 static void jit_eval_expr(JitEngine *jit, int idx, JitVar *out_val) {
     if (idx < 0) return;
@@ -145,9 +187,64 @@ static void jit_eval_expr(JitEngine *jit, int idx, JitVar *out_val) {
             my_strcpy(out_val->type, "unk");
         }
     }
+    else if (n->type == NODE_GET) {
+        /* get("prompt") — read a line from stdin */
+        char input_buf[512];
+        input_buf[0] = '\0';
+        jit_read_line(n->sval, input_buf, 512);
+
+        my_strcpy(out_val->sval, input_buf);
+        my_strcpy(out_val->type, "chr");
+
+        /* Auto-detect numeric: if all digits (optionally leading minus), set ival too */
+        const char *p = input_buf;
+        int is_num = 1;
+        if (*p == '-') p++;
+        if (!*p) is_num = 0;
+        for (const char *q = p; *q; q++)
+            if (*q < '0' || *q > '9') { is_num = 0; break; }
+        if (is_num) {
+            out_val->ival = jit_str_to_i64(input_buf);
+            out_val->dval = (double)out_val->ival;
+            my_strcpy(out_val->type, "num");   /* upgrade to num if pure integer */
+        } else {
+            out_val->ival = 0;
+            out_val->dval = 0.0;
+        }
+    }
     else if (n->type == NODE_BINARY_OP) {
+        /* unary not / neg — right is -1 */
+        if (n->right < 0) {
+            JitVar operand;
+            jit_eval_expr(jit, n->left, &operand);
+            if (my_strcmp(n->op, "not") == 0) {
+                out_val->ival = !operand.ival;
+                out_val->dval = 0.0;
+                my_strcpy(out_val->type, "blo");
+                int_to_str(out_val->ival, out_val->sval);
+            } else { /* neg */
+                out_val->ival = -operand.ival;
+                out_val->dval = -operand.dval;
+                my_strcpy(out_val->type, operand.type);
+                int_to_str(out_val->ival, out_val->sval);
+            }
+            return;
+        }
         JitVar left_val, right_val;
         jit_eval_expr(jit, n->left, &left_val);
+        /* short-circuit: and/or */
+        if (my_strcmp(n->op, "and") == 0) {
+            if (!left_val.ival) { out_val->ival=0; out_val->dval=0.0; my_strcpy(out_val->type,"blo"); my_strcpy(out_val->sval,"0"); return; }
+            jit_eval_expr(jit, n->right, &right_val);
+            out_val->ival = right_val.ival ? 1 : 0;
+            out_val->dval = 0.0; my_strcpy(out_val->type,"blo"); int_to_str(out_val->ival,out_val->sval); return;
+        }
+        if (my_strcmp(n->op, "or") == 0) {
+            if (left_val.ival)  { out_val->ival=1; out_val->dval=0.0; my_strcpy(out_val->type,"blo"); my_strcpy(out_val->sval,"1"); return; }
+            jit_eval_expr(jit, n->right, &right_val);
+            out_val->ival = right_val.ival ? 1 : 0;
+            out_val->dval = 0.0; my_strcpy(out_val->type,"blo"); int_to_str(out_val->ival,out_val->sval); return;
+        }
         jit_eval_expr(jit, n->right, &right_val);
         
         int is_flt = (my_strcmp(left_val.type, "flt") == 0 || my_strcmp(right_val.type, "flt") == 0 ||
@@ -193,11 +290,203 @@ static void jit_eval_expr(JitEngine *jit, int idx, JitVar *out_val) {
             int_to_str(out_val->ival, out_val->sval);
         }
     }
+    /* string + string concatenation */
+    else if (n->type == NODE_BINARY_OP &&
+             my_strcmp(n->op, "+") == 0) {
+        /* handled below in binary op — but catch chr+chr explicitly */
+        JitVar lv, rv;
+        jit_eval_expr(jit, n->left,  &lv);
+        jit_eval_expr(jit, n->right, &rv);
+        if (my_strcmp(lv.type, "chr") == 0 || my_strcmp(rv.type, "chr") == 0) {
+            my_strcpy(out_val->sval, lv.sval);
+            my_strcat(out_val->sval, rv.sval);
+            my_strcpy(out_val->type, "chr");
+            out_val->ival = 0; out_val->dval = 0.0;
+            return;
+        }
+        /* fall through to regular num math below — re-evaluate */
+        out_val->ival  = lv.ival + rv.ival;
+        out_val->dval  = lv.dval + rv.dval;
+        my_strcpy(out_val->type, "num");
+        int_to_str(out_val->ival, out_val->sval);
+        return;
+    }
+    /* built-in function calls */
+    else if (n->type == NODE_FN_CALL) {
+        const char *fn = n->sval;
+        /* collect args */
+        JitVar args[8]; int argc = 0;
+        for (int i = 0; i < n->child_count && i < 8; i++) {
+            jit_eval_expr(jit, n->children[i], &args[argc++]);
+        }
+        out_val->ival = 0; out_val->dval = 0.0; out_val->sval[0] = '\0';
+        my_strcpy(out_val->type, "num");
+
+        /* ─── output / newline ─── */
+        if (my_strcmp(fn, "nl") == 0 || my_strcmp(fn, "newline") == 0) {
+            jit_emit_and_run("\n");
+            out_val->sval[0] = '\0'; out_val->ival = 0;
+            return;
+        }
+        /* ─── math ─── */
+        if (my_strcmp(fn, "abs") == 0 && argc >= 1) {
+            out_val->ival = args[0].ival < 0 ? -args[0].ival : args[0].ival;
+            out_val->dval = args[0].dval < 0.0 ? -args[0].dval : args[0].dval;
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "max") == 0 && argc >= 2) {
+            out_val->ival = args[0].ival > args[1].ival ? args[0].ival : args[1].ival;
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "min") == 0 && argc >= 2) {
+            out_val->ival = args[0].ival < args[1].ival ? args[0].ival : args[1].ival;
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "pow") == 0 && argc >= 2) {
+            i64 base = args[0].ival, exp2 = args[1].ival, r = 1;
+            for (i64 k = 0; k < exp2; k++) r *= base;
+            out_val->ival = r; int_to_str(r, out_val->sval);
+        } else if (my_strcmp(fn, "clamp") == 0 && argc >= 3) {
+            i64 v = args[0].ival, lo = args[1].ival, hi = args[2].ival;
+            out_val->ival = v < lo ? lo : (v > hi ? hi : v);
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "sqrt") == 0 && argc >= 1) {
+            /* Newton-Raphson integer sqrt */
+            i64 n2 = args[0].ival < 0 ? 0 : args[0].ival;
+            i64 x = n2, y = (n2 + 1) / 2;
+            while (y < x) { x = y; y = (y + n2 / (y ? y : 1)) / 2; }
+            out_val->ival = x; int_to_str(x, out_val->sval);
+        } else if (my_strcmp(fn, "mod") == 0 && argc >= 2) {
+            out_val->ival = args[1].ival ? (args[0].ival % args[1].ival) : 0;
+            int_to_str(out_val->ival, out_val->sval);
+        }
+        /* ─── string ─── */
+        else if (my_strcmp(fn, "len") == 0 && argc >= 1) {
+            out_val->ival = (i64)my_strlen(args[0].sval);
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "upper") == 0 && argc >= 1) {
+            my_strcpy(out_val->sval, args[0].sval);
+            for (int k = 0; out_val->sval[k]; k++)
+                if (out_val->sval[k] >= 'a' && out_val->sval[k] <= 'z')
+                    out_val->sval[k] -= 32;
+            my_strcpy(out_val->type, "chr");
+        } else if (my_strcmp(fn, "lower") == 0 && argc >= 1) {
+            my_strcpy(out_val->sval, args[0].sval);
+            for (int k = 0; out_val->sval[k]; k++)
+                if (out_val->sval[k] >= 'A' && out_val->sval[k] <= 'Z')
+                    out_val->sval[k] += 32;
+            my_strcpy(out_val->type, "chr");
+        } else if (my_strcmp(fn, "concat") == 0 && argc >= 2) {
+            my_strcpy(out_val->sval, args[0].sval);
+            my_strcat(out_val->sval, args[1].sval);
+            my_strcpy(out_val->type, "chr");
+        } else if (my_strcmp(fn, "num") == 0 && argc >= 1) {
+            /* type cast: num(x) — convert to integer */
+            out_val->ival = args[0].ival;
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "str") == 0 && argc >= 1) {
+            /* type cast: str(x) — convert to string */
+            my_strcpy(out_val->sval, args[0].sval);
+            my_strcpy(out_val->type, "chr");
+        } else if (my_strcmp(fn, "even") == 0 && argc >= 1) {
+            out_val->ival = (args[0].ival % 2 == 0) ? 1 : 0;
+            my_strcpy(out_val->type, "blo");
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "odd") == 0 && argc >= 1) {
+            out_val->ival = (args[0].ival % 2 != 0) ? 1 : 0;
+            my_strcpy(out_val->type, "blo");
+            int_to_str(out_val->ival, out_val->sval);
+
+        /* ─── modulo ─── */
+        } else if (my_strcmp(fn, "mod") == 0 && argc >= 2) {
+            i64 divisor = args[1].ival;
+            out_val->ival = (divisor != 0) ? (args[0].ival % divisor) : 0;
+            int_to_str(out_val->ival, out_val->sval);
+
+        /* ─── type casting ─── */
+        } else if ((my_strcmp(fn, "str") == 0 || my_strcmp(fn, "tostr") == 0) && argc >= 1) {
+            my_strcpy(out_val->sval, args[0].sval);
+            my_strcpy(out_val->type, "chr");
+            out_val->ival = 0;
+        } else if ((my_strcmp(fn, "num") == 0 || my_strcmp(fn, "tonum") == 0) && argc >= 1) {
+            out_val->ival = jit_str_to_i64(args[0].sval);
+            out_val->dval = (double)out_val->ival;
+            int_to_str(out_val->ival, out_val->sval);
+            my_strcpy(out_val->type, "num");
+        } else if ((my_strcmp(fn, "flt") == 0 || my_strcmp(fn, "toflt") == 0) && argc >= 1) {
+            out_val->dval = str_to_flt(args[0].sval);
+            out_val->ival = (i64)out_val->dval;
+            flt_to_str(out_val->dval, out_val->sval);
+            my_strcpy(out_val->type, "flt");
+
+        /* ─── type query ─── */
+        } else if (my_strcmp(fn, "type") == 0 && argc >= 1) {
+            my_strcpy(out_val->sval, args[0].type);
+            my_strcpy(out_val->type, "chr");
+            out_val->ival = 0;
+
+        /* ─── print / println aliases ─── */
+        } else if (my_strcmp(fn, "print") == 0 && argc >= 1) {
+            jit_emit_and_run(args[0].sval);
+            out_val->ival = 0; out_val->sval[0] = '\0';
+        } else if (my_strcmp(fn, "println") == 0 && argc >= 1) {
+            char tmp[520];
+            my_strcpy(tmp, args[0].sval);
+            my_strcat(tmp, "\n");
+            jit_emit_and_run(tmp);
+            out_val->ival = 0; out_val->sval[0] = '\0';
+
+        /* ─── string utilities ─── */
+        } else if (my_strcmp(fn, "chr_at") == 0 && argc >= 2) {
+            /* chr_at(str, idx) -> single char string */
+            int si = (int)args[1].ival;
+            int slen = (int)my_strlen(args[0].sval);
+            if (si >= 0 && si < slen) {
+                out_val->sval[0] = args[0].sval[si];
+                out_val->sval[1] = '\0';
+            } else {
+                out_val->sval[0] = '\0';
+            }
+            my_strcpy(out_val->type, "chr");
+            out_val->ival = 0;
+        } else if (my_strcmp(fn, "repeat") == 0 && argc >= 2) {
+            /* repeat(str, n) -> repeated string */
+            out_val->sval[0] = '\0';
+            i64 times = args[1].ival;
+            for (i64 ri = 0; ri < times && my_strlen(out_val->sval) + my_strlen(args[0].sval) < 500; ri++)
+                my_strcat(out_val->sval, args[0].sval);
+            my_strcpy(out_val->type, "chr");
+            out_val->ival = 0;
+        } else if (my_strcmp(fn, "digits") == 0 && argc >= 1) {
+            /* digits(n) -> number of decimal digits */
+            i64 v = args[0].ival < 0 ? -args[0].ival : args[0].ival;
+            if (v == 0) { out_val->ival = 1; }
+            else { out_val->ival = 0; while (v > 0) { out_val->ival++; v /= 10; } }
+            int_to_str(out_val->ival, out_val->sval);
+        } else if (my_strcmp(fn, "sign") == 0 && argc >= 1) {
+            out_val->ival = (args[0].ival > 0) ? 1 : (args[0].ival < 0) ? -1 : 0;
+            int_to_str(out_val->ival, out_val->sval);
+
+        /* ─── boolean cast ─── */
+        } else if (my_strcmp(fn, "bool") == 0 && argc >= 1) {
+            out_val->ival = (args[0].ival != 0) ? 1 : 0;
+            my_strcpy(out_val->type, "blo");
+            int_to_str(out_val->ival, out_val->sval);
+
+        /* ─── pseudo-random (deterministic based on input) ─── */
+        } else if (my_strcmp(fn, "randish") == 0 && argc >= 1) {
+            /* Not truly random — gives a hash-like value for demos */
+            i64 seed = args[0].ival;
+            out_val->ival = ((seed * 1664525LL + 1013904223LL) >> 8) & 0x7FFFFFFF;
+            int_to_str(out_val->ival, out_val->sval);
+
+        } else {
+            /* Unknown function — silently return 0 so user-defined fns
+               (future dispatch table) don't crash the JIT */
+            out_val->ival = 0; out_val->sval[0] = '\0';
+        }
+        return;
+    }
     else {
-        out_val->ival = 0;
-        out_val->dval = 0.0;
-        out_val->sval[0] = '\0';
-        my_strcpy(out_val->type, "unk");
+        out_val->ival = 0; out_val->dval = 0.0;
+        out_val->sval[0] = '\0'; my_strcpy(out_val->type, "unk");
     }
 }
 
@@ -340,11 +629,142 @@ static void jit_exec_stmt(JitEngine *jit, int idx) {
         }
     }
     else if (n->type == NODE_LOOP) {
-        while (1) {
-            JitVar cond;
-            jit_eval_expr(jit, n->condition, &cond);
-            if (jit->had_error || cond.ival == 0) break;
-            jit_exec_stmt(jit, n->body);
+        if (my_strcmp(n->rdx_type, "range") == 0 && n->condition >= 0) {
+            /* range loop:  loop start..end as i */
+            ASTNode *range_arr = &rdx_nodes[n->condition];
+            JitVar sv, ev;
+            jit_eval_expr(jit, range_arr->children[0], &sv);
+            jit_eval_expr(jit, range_arr->children[1], &ev);
+            i64 start = sv.ival, end = ev.ival;
+            /* loop variable name stored in sval */
+            const char *ivar = n->sval[0] ? n->sval : "i";
+            JitVar *loop_v = jit_add_var(jit, ivar, "num");
+            for (i64 idx2 = start; idx2 < end && !jit->had_error && !jit->break_flag; idx2++) {
+                loop_v->ival = idx2;
+                loop_v->dval = (double)idx2;
+                int_to_str(idx2, loop_v->sval);
+                jit->continue_flag = 0;
+                jit_exec_stmt(jit, n->body);
+                if (jit->continue_flag) { jit->continue_flag = 0; continue; }
+            }
+            jit->break_flag = 0;
+        } else if (n->condition < 0) {
+            /* infinite loop — break via break_flag */
+            while (!jit->had_error && !jit->break_flag) {
+                jit->continue_flag = 0;
+                jit_exec_stmt(jit, n->body);
+                if (jit->continue_flag) { jit->continue_flag = 0; continue; }
+            }
+            jit->break_flag = 0;
+        } else {
+            /* while-style: loop cond { } */
+            while (!jit->break_flag) {
+                JitVar cond;
+                jit_eval_expr(jit, n->condition, &cond);
+                if (jit->had_error || cond.ival == 0) break;
+                jit->continue_flag = 0;
+                jit_exec_stmt(jit, n->body);
+                if (jit->continue_flag) { jit->continue_flag = 0; continue; }
+            }
+            jit->break_flag = 0;
+        }
+    }
+    else if (n->type == NODE_RETURN) {
+        /* ret expr — also handles break sentinel (ival == -999) */
+        if (n->ival == -999) {
+            /* break statement */
+            jit->break_flag = 1;
+            return;
+        }
+        if (n->left >= 0) {
+            JitVar temp;
+            jit_eval_expr(jit, n->left, &temp);
+        }
+    }
+    else if (n->type == NODE_FN_CALL) {
+        /* Function call as a statement — nl(), or any side-effect call.
+           Special built-ins handled here directly for statement context. */
+        if (my_strcmp(n->sval, "nl") == 0 || my_strcmp(n->sval, "newline") == 0) {
+            jit_emit_and_run("\n");
+        } else if (my_strcmp(n->sval, "nl") == 0) {
+            jit_emit_and_run("\n");
+        } else {
+            /* Evaluate for side effects (e.g. user-defined fn placeholders) */
+            JitVar discard;
+            jit_eval_expr(jit, idx, &discard);
+        }
+    }
+    else if (n->type == NODE_GET) {
+        /* get() as standalone statement — discard the result */
+        JitVar discard;
+        jit_eval_expr(jit, idx, &discard);
+    }
+    else if (n->type == NODE_CONTINUE) {
+        /* Signal the loop executor to skip to the next iteration */
+        jit->continue_flag = 1;
+    }
+    else if (n->type == NODE_SAFE_FAIL) {
+        /* safe { body } fail errname { handler }
+           Save error state, run safe body. If error occurred, reset and run fail body. */
+        int prev_error = jit->had_error;
+        jit->had_error = 0;
+
+        /* run safe body */
+        jit_exec_stmt(jit, n->body);
+
+        if (jit->had_error) {
+            /* error in safe block — set the error variable name if provided */
+            jit->had_error = 0; /* reset so fail body can run cleanly */
+            if (n->sval[0] != '\0') {
+                /* store a string variable with the error description */
+                JitVar *errv = jit_add_var(jit, n->sval, "chr");
+                if (errv) my_strcpy(errv->sval, "runtime error");
+            }
+            if (n->else_body >= 0) {
+                jit_exec_stmt(jit, n->else_body);
+            }
+        } else {
+            /* restore outer error state */
+            jit->had_error = prev_error;
+        }
+    }
+    else if (n->type == NODE_MATCH) {
+        /* match val { pat -> { body } ... _ -> { body } }
+           Evaluate the subject, then iterate arms pairwise (pat, body). */
+        JitVar subject;
+        jit_eval_expr(jit, n->condition, &subject);
+
+        int matched = 0;
+        int i = 0;
+        while (i + 1 < n->child_count && !matched) {
+            int pat_idx  = n->children[i];
+            int body_idx = n->children[i + 1];
+            i += 2;
+
+            ASTNode *pat = &rdx_nodes[pat_idx];
+
+            /* wildcard _ always matches */
+            if (pat->type == NODE_LITERAL_STR && my_strcmp(pat->sval, "_") == 0) {
+                jit_exec_stmt(jit, body_idx);
+                matched = 1;
+                break;
+            }
+
+            /* evaluate pattern and compare */
+            JitVar pv;
+            jit_eval_expr(jit, pat_idx, &pv);
+
+            int arm_match = 0;
+            if (my_strcmp(subject.type, "chr") == 0 || my_strcmp(pv.type, "chr") == 0) {
+                arm_match = (my_strcmp(subject.sval, pv.sval) == 0);
+            } else {
+                arm_match = (subject.ival == pv.ival);
+            }
+
+            if (arm_match) {
+                jit_exec_stmt(jit, body_idx);
+                matched = 1;
+            }
         }
     }
 }
@@ -354,13 +774,11 @@ static void jit_exec_stmt(JitEngine *jit, int idx) {
  * ============================================================ */
 void jit_init(JitEngine *jit) {
     my_memset(jit, 0, sizeof(JitEngine));
-    JitVar *t = jit_add_var(jit, "TRUE", "blo");
-    t->ival = 1;
-    my_strcpy(t->sval, "1");
-    
-    JitVar *f = jit_add_var(jit, "FALSE", "blo");
-    f->ival = 0;
-    my_strcpy(f->sval, "0");
+    /* seed boolean literals (both cases) */
+    JitVar *t = jit_add_var(jit, "true",  "blo"); t->ival = 1; my_strcpy(t->sval, "1");
+    JitVar *T = jit_add_var(jit, "TRUE",  "blo"); T->ival = 1; my_strcpy(T->sval, "1");
+    JitVar *f = jit_add_var(jit, "false", "blo"); f->ival = 0; my_strcpy(f->sval, "0");
+    JitVar *F = jit_add_var(jit, "FALSE", "blo"); F->ival = 0; my_strcpy(F->sval, "0");
 }
 
 int jit_run(JitEngine *jit, int root) {

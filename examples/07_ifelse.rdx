@@ -1,11 +1,14 @@
-sys.rdx{
-    // if else demonstration
-    num = 10
-    blo = TRUE
-    
-    if (num > 5) {
-        call("num is greater than 5" []);
+sys.rdx {
+    num score = 85
+
+    // if / elif / else — no parentheses needed
+    if score >= 90 {
+        call("Grade: A")
+    } elif score >= 75 {
+        call("Grade: B")
+    } elif score >= 60 {
+        call("Grade: C")
     } else {
-        call("num is not greater than 5" []);
+        call("Grade: F")
     }
 }

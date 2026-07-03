@@ -1,0 +1,56 @@
+// ── sorting.rdx ───────────────────────────────────────────────
+// Bubble sort demonstration using RDX v2
+// Real-world algorithm: sorting 10 numbers in ascending order
+
+sys.rdx {
+    call("╔══════════════════════════════╗")
+    call("║   RDX Sorting Algorithm      ║")
+    call("╚══════════════════════════════╝")
+
+    // --- simulate an array via indexed variables ---
+    // arr[0..9]
+    mut num v0 = 64
+    mut num v1 = 34
+    mut num v2 = 25
+    mut num v3 = 12
+    mut num v4 = 22
+    mut num v5 = 11
+    mut num v6 = 90
+    mut num v7 = 55
+    mut num v8 = 78
+    mut num v9 = 3
+
+    call("")
+    call("Unsorted: " [v0," ",v1," ",v2," ",v3," ",v4," ",v5," ",v6," ",v7," ",v8," ",v9])
+
+    // Bubble sort — O(n²) — 9 passes, 9 comparisons each
+    // Unrolled for RDX v2 (no array indexing yet)
+    mut num pass = 0
+    loop pass < 9 {
+        // Compare and swap adjacent pairs
+        if v0 > v1 { mut num t = v0  v0 = v1  v1 = t }
+        if v1 > v2 { mut num t = v1  v1 = v2  v2 = t }
+        if v2 > v3 { mut num t = v2  v2 = v3  v3 = t }
+        if v3 > v4 { mut num t = v3  v3 = v4  v4 = t }
+        if v4 > v5 { mut num t = v4  v4 = v5  v5 = t }
+        if v5 > v6 { mut num t = v5  v5 = v6  v6 = t }
+        if v6 > v7 { mut num t = v6  v6 = v7  v7 = t }
+        if v7 > v8 { mut num t = v7  v7 = v8  v8 = t }
+        if v8 > v9 { mut num t = v8  v8 = v9  v9 = t }
+        pass = pass + 1
+    }
+
+    call("Sorted:   " [v0," ",v1," ",v2," ",v3," ",v4," ",v5," ",v6," ",v7," ",v8," ",v9])
+    call("")
+    call("=== Smallest and Largest ===")
+    call("Smallest: " [v0])
+    call("Largest:  " [v9])
+    call("Range:    " [v9 - v0])
+
+    call("")
+    call("=== Sum and Average ===")
+    num total = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9
+    num avg = total / 10
+    call("Sum:     " [total])
+    call("Average: " [avg])
+}

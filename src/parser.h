@@ -9,6 +9,10 @@ typedef enum {
     NODE_ASSIGN, NODE_FN_CALL, NODE_SYS_CALL, NODE_BINARY_OP,
     NODE_LITERAL_NUM, NODE_LITERAL_STR, NODE_LITERAL_FLT, NODE_IDENT,
     NODE_SYS_BLOCK, NODE_MEMBER_ACCESS, NODE_BLOCK, NODE_ARRAY,
+    NODE_GET,           /* get("prompt") — read line from stdin */
+    NODE_SAFE_FAIL,     /* safe { } fail err { } — error handling */
+    NODE_MATCH,         /* match val { val -> { } } — pattern match */
+    NODE_CONTINUE,      /* continue — skip to next loop iteration */
 } NodeType;
 
 typedef struct {
@@ -22,7 +26,7 @@ typedef struct {
     int      condition;
     int      body;
     int      else_body;
-    int      children[64];  /* block stmts / fn params       */
+    int      children[512];  /* block stmts / fn params       */
     int      child_count;
     int      line;
 } ASTNode;

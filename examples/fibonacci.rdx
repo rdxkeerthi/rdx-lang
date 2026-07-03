@@ -1,0 +1,37 @@
+// ── fibonacci.rdx ──────────────────────────────────────────────
+// Compute fibonacci numbers both iteratively and with formula
+// RDX v2 — real-world math example
+
+sys.rdx {
+    call("=== Fibonacci Sequence ===")
+
+    // Iterative fibonacci
+    mut num a = 0
+    mut num b = 1
+    mut num i = 0
+
+    call("First 15 fibonacci numbers:")
+    loop i < 15 {
+        call(a)
+        mut num next = a + b
+        a = b
+        b = next
+        i = i + 1
+    }
+
+    call("")
+    call("=== Powers of 2 ===")
+    loop 0..10 as n {
+        num result = pow(2, n)
+        call(result)
+    }
+
+    call("")
+    call("=== Math Built-ins ===")
+    num x = 0 - 42
+    call("abs(-42)     = " [abs(x)])
+    call("max(10, 99)  = " [max(10, 99)])
+    call("min(10, 99)  = " [min(10, 99)])
+    call("sqrt(144)    = " [sqrt(144)])
+    call("clamp(150,0,100) = " [clamp(150, 0, 100)])
+}

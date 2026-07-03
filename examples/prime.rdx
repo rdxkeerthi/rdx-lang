@@ -1,0 +1,85 @@
+// ── examples/prime.rdx ────────────────────────────────────────
+// Prime number sieve & checker
+// Demonstrates: nested loops, continue, break, mod()
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX Prime Number Finder                ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    // ─── Check if a number is prime (trial division) ──────────
+    call("=== Checking Single Numbers ===")
+
+    // Primes: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29
+    // Non-primes: 4, 6, 8, 9, 10, 12, 14, 15, 16
+    num tests = 10
+    loop 2..22 as n {
+        num is_prime = 1
+        if n < 2 {
+            is_prime = 0
+        }
+        if n > 2 {
+            num d = 2
+            loop d * d <= n {
+                num rem = mod(n, d)
+                if rem == 0 {
+                    is_prime = 0
+                    break
+                }
+                d = d + 1
+            }
+        }
+        if is_prime == 1 {
+            call("" [n, " → PRIME ✓"])
+        } else {
+            call("" [n, " → composite"])
+        }
+    }
+
+    nl()
+    call("=== First 20 Primes ===")
+
+    mut num found = 0
+    mut num candidate = 2
+    loop found < 20 {
+        num is_prime = 1
+        if candidate > 2 {
+            num d = 2
+            loop d * d <= candidate {
+                if mod(candidate, d) == 0 {
+                    is_prime = 0
+                    break
+                }
+                d = d + 1
+            }
+        }
+        if is_prime == 1 {
+            found = found + 1
+            call("  Prime #" [found, " = ", candidate])
+        }
+        candidate = candidate + 1
+    }
+
+    nl()
+    call("=== Prime Sum (1 to 50) ===")
+    mut num prime_sum = 0
+    mut num prime_count = 0
+    loop 2..51 as p {
+        num is_p = 1
+        num dd = 2
+        loop dd * dd <= p {
+            if mod(p, dd) == 0 {
+                is_p = 0
+                break
+            }
+            dd = dd + 1
+        }
+        if is_p == 1 {
+            prime_sum = prime_sum + p
+            prime_count = prime_count + 1
+        }
+    }
+    call("Total primes up to 50: " [prime_count])
+    call("Sum of all primes ≤ 50: " [prime_sum])
+}

@@ -1,0 +1,47 @@
+// ── lib/io.rdx ────────────────────────────────────────────────
+// RDX Standard I/O Library
+// Usage:  load io
+//
+// Documents and demonstrates all I/O built-ins in RDX.
+
+sys.rdx {
+    call("=== RDX io.rdx Standard Library ===")
+    nl()
+
+    // ─── Output ──────────────────────────────────────────────
+    // call(expr)         — print value + newline
+    // call("" [a, b, c]) — print multiple values concatenated
+    // nl()               — print blank newline
+    // newline()          — alias for nl()
+
+    call("call() prints a line")
+    nl()
+    call("nl() prints a blank line above and below")
+    nl()
+
+    // ─── Multi-value output ───────────────────────────────────
+    num a = 10
+    num b = 20
+    call("a = " [a, ", b = " , b, ", a+b = ", a + b])
+    nl()
+
+    // ─── Input ───────────────────────────────────────────────
+    // chr name = get("prompt")  — reads a line of text
+    // num age  = get("prompt")  — auto-converts to number if digits only
+    //
+    // Example (interactive — comment out when not needed):
+    // chr user_name = get("Enter your name: ")
+    // nl()
+    // call("Hello, " [user_name, "!"])
+
+    call("io.rdx: get() reads user input from the terminal.")
+    call("io.rdx: assign to chr or num — type is auto-detected.")
+    nl()
+
+    // ─── print / println aliases ─────────────────────────────
+    // print(str)   — output string without forced newline in built-in
+    // println(str) — output string + newline appended
+
+    nl()
+    call("io.rdx loaded successfully.")
+}

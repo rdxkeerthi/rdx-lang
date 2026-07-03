@@ -1,0 +1,90 @@
+// ── todo_app.rdx ──────────────────────────────────────────────
+// A simple in-memory Todo application demo
+// Shows: structured data, conditional logic, counters, progress
+// RDX v2 — real-world application example
+
+sys.rdx {
+    call("╔══════════════════════════════════════╗")
+    call("║        RDX Todo App Demo             ║")
+    call("╚══════════════════════════════════════╝")
+    nl()
+
+    // ─── Task list (simulated with named variables) ───────────
+    // status: 1 = done, 0 = pending
+    chr task1  = "Set up RDX development environment"
+    num done1  = 1
+    chr task2  = "Write the RDX compiler in C"
+    num done2  = 1
+    chr task3  = "Add built-in math functions"
+    num done3  = 1
+    chr task4  = "Create real-world example programs"
+    num done4  = 1
+    chr task5  = "Write self-hosted rdxc.rdx compiler"
+    num done5  = 0
+    chr task6  = "Add LLVM backend for AOT compilation"
+    num done6  = 0
+    chr task7  = "Create package manager (rdxpkg)"
+    num done7  = 0
+    chr task8  = "Publish to GitHub"
+    num done8  = 0
+    chr task9  = "Write language specification"
+    num done9  = 1
+    chr task10 = "Add VS Code extension with syntax highlight"
+    num done10 = 0
+
+    // ─── Print all tasks with status ─────────────────────────
+    call("📋 All Tasks:")
+    call("─────────────────────────────────────────")
+
+    if done1  == 1 { call("[✓] " [task1])  } else { call("[ ] " [task1])  }
+    if done2  == 1 { call("[✓] " [task2])  } else { call("[ ] " [task2])  }
+    if done3  == 1 { call("[✓] " [task3])  } else { call("[ ] " [task3])  }
+    if done4  == 1 { call("[✓] " [task4])  } else { call("[ ] " [task4])  }
+    if done5  == 1 { call("[✓] " [task5])  } else { call("[ ] " [task5])  }
+    if done6  == 1 { call("[✓] " [task6])  } else { call("[ ] " [task6])  }
+    if done7  == 1 { call("[✓] " [task7])  } else { call("[ ] " [task7])  }
+    if done8  == 1 { call("[✓] " [task8])  } else { call("[ ] " [task8])  }
+    if done9  == 1 { call("[✓] " [task9])  } else { call("[ ] " [task9])  }
+    if done10 == 1 { call("[✓] " [task10]) } else { call("[ ] " [task10]) }
+
+    call("─────────────────────────────────────────")
+
+    // ─── Statistics ───────────────────────────────────────────
+    num completed   = done1 + done2 + done3 + done4 + done5 + done6 + done7 + done8 + done9 + done10
+    num total_tasks = 10
+    num pending     = total_tasks - completed
+    num percent     = completed * 100 / total_tasks
+
+    nl()
+    call("📊 Progress Report:")
+    call("  Total tasks:   " [total_tasks])
+    call("  Completed:     " [completed])
+    call("  Pending:       " [pending])
+    call("  Progress:      " [percent, "%"])
+    nl()
+
+    // ─── ASCII progress bar ───────────────────────────────────
+    // Build bar string: filled = completed, empty = pending
+    chr bar_filled = repeat("█", completed)
+    chr bar_empty  = repeat("░", pending)
+    chr bar        = concat(bar_filled, bar_empty)
+    call("Progress: [" [bar, "] ", percent, "%"])
+
+    nl()
+
+    // ─── Summary message ──────────────────────────────────────
+    if completed == total_tasks {
+        call("🏆 All tasks complete! Excellent work!")
+    } elif percent >= 70 {
+        call("🌟 Great progress! Almost there.")
+    } elif percent >= 50 {
+        call("👍 Halfway done! Keep going.")
+    } elif percent >= 30 {
+        call("📚 Making progress. Stay focused.")
+    } else {
+        call("🚀 Just getting started. Let's go!")
+    }
+
+    nl()
+    call("RDX Todo App — Powered by 🐝 RDX v2.0")
+}

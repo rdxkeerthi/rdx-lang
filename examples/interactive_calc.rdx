@@ -1,0 +1,62 @@
+// ── interactive_calc.rdx ──────────────────────────────────────
+// Interactive calculator — reads numbers from the user
+// Demonstrates: get(), nl(), arithmetic, if/elif
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX Interactive Calculator             ║")
+    call("║   Type two numbers, get the results!     ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    // Get first number
+    num a = get("Enter first number:  ")
+    nl()
+
+    // Get second number
+    num b = get("Enter second number: ")
+    nl()
+
+    call("─────────────────────────────────────────")
+    call("Results:")
+    nl()
+
+    // Arithmetic
+    num add_r = a + b
+    num sub_r = a - b
+    num mul_r = a * b
+
+    call("  " [a, " + " , b, " = " , add_r])
+    call("  " [a, " - " , b, " = " , sub_r])
+    call("  " [a, " * " , b, " = " , mul_r])
+
+    // Division (guard zero)
+    if b == 0 {
+        call("  Division by zero is not allowed")
+    } else {
+        num div_r = a / b
+        num rem_r = mod(a, b)
+        call("  " [a, " / " , b, " = " , div_r])
+        call("  " [a, " % " , b, " = " , rem_r])
+    }
+
+    nl()
+    call("─────────────────────────────────────────")
+
+    // Compare
+    if a > b {
+        call("" [a, " is greater than " , b])
+    } elif a < b {
+        call("" [a, " is less than " , b])
+    } else {
+        call("Both numbers are equal!")
+    }
+
+    nl()
+
+    // Power
+    num power = pow(a, 2)
+    call("" [a, " squared = " , power])
+    num sqrt_a = sqrt(abs(a))
+    call("sqrt(" [a, ") ≈ " , sqrt_a])
+}

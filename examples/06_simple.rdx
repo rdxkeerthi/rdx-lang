@@ -1,11 +1,10 @@
-sys.rdx{
-    // start of program
-    num = 25           // numbers 
-    chr = "My name"    // character 
-    flt = 1.2          // floating value
-    blo = TRUE         // boolean
-    dob = 1.2345       // double
-    
-    // print statement 
-    call("answer : " [blo]); 
+sys.rdx {
+    // all 5 data types
+    num count = 42
+    chr name = "Alice"
+    flt ratio = 3.14
+    blo flag = true
+    dob exact = 3.141592
+
+    call("Values: " [count, name, ratio, flag, exact])
 }

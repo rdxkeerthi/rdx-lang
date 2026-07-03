@@ -1,0 +1,61 @@
+// ── greet.rdx ─────────────────────────────────────────────────
+// Simple greeting program — uses get() to read a name
+// Great first program for learning get() and nl()
+
+sys.rdx {
+    call("╔═══════════════════════════════╗")
+    call("║   Welcome to RDX Language!    ║")
+    call("╚═══════════════════════════════╝")
+    nl()
+
+    // Read user's name
+    chr name = get("What is your name? ")
+    nl()
+
+    // Read user's age
+    num age = get("How old are you?  ")
+    nl()
+
+    // Read a favourite number
+    num fav = get("Favourite number? ")
+    nl()
+
+    call("─────────────────────────────")
+    call("Hello, " [name, "! 👋"])
+    nl()
+
+    // Age-based message
+    if age < 13 {
+        call("You are a child. Keep learning!")
+    } elif age < 18 {
+        call("You are a teenager. The future is yours!")
+    } elif age < 30 {
+        call("You are a young adult. Build great things!")
+    } elif age < 60 {
+        call("You are an adult. Keep pushing forward!")
+    } else {
+        call("You are wise! Experience is a superpower.")
+    }
+    nl()
+
+    // Fun facts about favourite number
+    call("Your favourite number is " [fav])
+
+    num fav_sq = fav * fav
+    num fav_cube = fav * fav * fav
+    num fav_sqrt = sqrt(abs(fav))
+
+    call("  " [fav, " squared   = " , fav_sq])
+    call("  " [fav, " cubed     = " , fav_cube])
+    call("  sqrt(" [fav, ")     ≈ " , fav_sqrt])
+
+    num is_even_check = mod(fav, 2)
+    if is_even_check == 0 {
+        call("  " [fav, " is EVEN"])
+    } else {
+        call("  " [fav, " is ODD"])
+    }
+    nl()
+
+    call("Thanks for using RDX, " [name, "! 🐝"])
+}

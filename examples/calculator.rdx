@@ -1,0 +1,73 @@
+// ── calculator.rdx ────────────────────────────────────────────
+// A demonstration calculator with all operations
+// Shows: arithmetic, comparison, modulo, string output
+// RDX v2 — real-world example
+
+sys.rdx {
+    call("╔══════════════════════════════╗")
+    call("║   RDX Calculator Demo        ║")
+    call("╚══════════════════════════════╝")
+    call("")
+
+    // Basic operations
+    num a = 120
+    num b = 7
+
+    num add_result = a + b
+    num sub_result = a - b
+    num mul_result = a * b
+    num div_result = a / b
+    num mod_result = a - (a / b * b)   // manual modulo: a - (a/b)*b
+
+    call("a = " [a])
+    call("b = " [b])
+    call("")
+    call("Addition:       a + b = " [add_result])
+    call("Subtraction:    a - b = " [sub_result])
+    call("Multiplication: a * b = " [mul_result])
+    call("Division:       a / b = " [div_result])
+    call("Remainder:      a % b = " [mod_result])
+
+    call("")
+    call("=== Grade Calculator ===")
+    mut num score = 92
+
+    if score >= 90 {
+        call("Score: " [score, " → Grade: A (Excellent!)"])
+    } elif score >= 80 {
+        call("Score: " [score, " → Grade: B (Good)"])
+    } elif score >= 70 {
+        call("Score: " [score, " → Grade: C (Average)"])
+    } elif score >= 60 {
+        call("Score: " [score, " → Grade: D (Below Average)"])
+    } else {
+        call("Score: " [score, " → Grade: F (Fail)"])
+    }
+
+    call("")
+    call("=== Temperature Converter ===")
+    // Celsius to Fahrenheit: F = (C * 9/5) + 32
+    num celsius = 37
+    num fahrenheit = celsius * 9 / 5 + 32
+    call("Body temp: " [celsius, "°C = " , fahrenheit, "°F"])
+
+    num celsius2 = 100
+    num fahrenheit2 = celsius2 * 9 / 5 + 32
+    call("Boiling:   " [celsius2, "°C = " , fahrenheit2, "°F"])
+
+    call("")
+    call("=== Divisibility Tests ===")
+    loop 1..21 as n {
+        num is_even = mod(n, 2)
+        num is_div3 = mod(n, 3)
+        if is_even == 0 {
+            if is_div3 == 0 {
+                call("" [n, " -> divisible by 2 AND 3"])
+            } else {
+                call("" [n, " -> even"])
+            }
+        } elif is_div3 == 0 {
+            call("" [n, " -> divisible by 3"])
+        }
+    }
+}

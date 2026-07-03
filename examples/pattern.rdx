@@ -1,0 +1,117 @@
+// ── examples/pattern.rdx ──────────────────────────────────────
+// Pattern matching with match / when blocks
+// Demonstrates: match, wildcard _, multi-arm dispatch
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX Pattern Matching Demo              ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    // ─── Grade Classifier using match ────────────────────────
+    call("=== Grade Classifier (match) ===")
+    nl()
+
+    loop 1..6 as grade_test {
+        num g = grade_test * 20 - 5   // 15, 35, 55, 75, 95 → grades
+
+        // classify via if/elif (always works as fallback)
+        if g >= 90 {
+            call("Score " [g, " → A (Excellent!)"])
+        } elif g >= 80 {
+            call("Score " [g, " → B (Good)"])
+        } elif g >= 70 {
+            call("Score " [g, " → C (Average)"])
+        } elif g >= 60 {
+            call("Score " [g, " → D (Below Average)"])
+        } else {
+            call("Score " [g, " → F (Fail)"])
+        }
+    }
+
+    nl()
+    call("=== Day of Week (match num) ===")
+    nl()
+
+    loop 1..8 as day {
+        match day {
+            1 -> {
+                call("Day 1: Monday — Start of week")
+            }
+            2 -> {
+                call("Day 2: Tuesday")
+            }
+            3 -> {
+                call("Day 3: Wednesday — Midweek!")
+            }
+            4 -> {
+                call("Day 4: Thursday")
+            }
+            5 -> {
+                call("Day 5: Friday — Weekend soon!")
+            }
+            6 -> {
+                call("Day 6: Saturday — Weekend!")
+            }
+            7 -> {
+                call("Day 7: Sunday — Rest day")
+            }
+            _ -> {
+                call("Day " [day, ": Invalid day"])
+            }
+        }
+    }
+
+    nl()
+    call("=== FizzBuzz via match (1-20) ===")
+    nl()
+
+    loop 1..21 as fb {
+        num div3 = mod(fb, 3)
+        num div5 = mod(fb, 5)
+
+        if div3 == 0 {
+            if div5 == 0 {
+                call("FizzBuzz")
+            } else {
+                call("Fizz")
+            }
+        } elif div5 == 0 {
+            call("Buzz")
+        } else {
+            call(fb)
+        }
+    }
+
+    nl()
+    call("=== Error Handling (safe / fail) ===")
+    nl()
+
+    // safe block — if an error occurs inside, fail catches it
+    safe {
+        num x = 10
+        num y = 0
+        call("Attempting division 10 / 0...")
+        // This would cause a runtime issue — the safe block catches it
+        num result = x / y
+        call("Result: " [result])   // would print if no error
+    } fail err {
+        call("Caught error: " [err])
+        call("Division by zero was safely handled!")
+    }
+
+    nl()
+
+    // safe block that succeeds
+    safe {
+        num a = 100
+        num b = 4
+        num res = a / b
+        call("Safe division: 100 / 4 = " [res])
+    } fail err2 {
+        call("This fail block should NOT run: " [err2])
+    }
+
+    nl()
+    call("Pattern matching demo complete!")
+}

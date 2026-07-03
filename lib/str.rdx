@@ -1,0 +1,56 @@
+// ── lib/str.rdx ───────────────────────────────────────────────
+// RDX Standard String Library
+// Usage:  load str
+//
+// Demonstrates all string built-in functions available in RDX.
+
+sys.rdx {
+    call("=== RDX str.rdx Standard Library ===")
+    nl()
+
+    chr word = "Hello, RDX!"
+
+    // len(str) — length of string
+    call("word          = '" [word, "'"])
+    call("len(word)     = " [len(word)])
+
+    // upper / lower
+    call("upper(word)   = " [upper(word)])
+    call("lower(word)   = " [lower(word)])
+
+    // concat(a, b) — join two strings
+    chr first = "Honey"
+    chr last  = "Bee"
+    chr full  = concat(first, last)
+    call("concat        = " [full])
+
+    // chr_at(str, idx) — character at position
+    call("chr_at(word, 0) = " [chr_at(word, 0)])
+    call("chr_at(word, 7) = " [chr_at(word, 7)])
+
+    // repeat(str, n) — repeat a string n times
+    chr star = repeat("*", 10)
+    call("repeat('*',10) = " [star])
+
+    chr dash = repeat("-", 20)
+    call("repeat('-',20) = " [dash])
+
+    // str(num) — convert number to string
+    num version = 2
+    chr vs = str(version)
+    call("str(2)        = '" [vs, "'"])
+
+    // num(str) — convert string to number
+    chr numstr = "42"
+    num parsed = tonum(numstr)
+    call("tonum('42')   = " [parsed])
+
+    // type(val) — get type name of a value
+    num  x = 100
+    chr  s = "test"
+    call("type(100)  = " [type(x)])
+    call("type(str)  = " [type(s)])
+
+    nl()
+    call("str.rdx loaded successfully.")
+}

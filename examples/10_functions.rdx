@@ -1,0 +1,20 @@
+// Functions in RDX v2
+// Declare with: make funcName(type param) -> returnType { }
+
+make add(num a, num b) -> num {
+    ret a + b
+}
+
+sys.rdx {
+    // inline arithmetic (JIT evaluates expressions directly)
+    num a = 10
+    num b = 32
+    num result = a + b
+    call("10 + 32 = " [result])
+
+    // types demo
+    chr greeting = "Hello World!"
+    call(greeting)
+
+    call("Function syntax demo done!")
+}

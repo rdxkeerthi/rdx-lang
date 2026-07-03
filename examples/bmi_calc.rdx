@@ -1,0 +1,77 @@
+// ── examples/bmi_calc.rdx ─────────────────────────────────────
+// BMI (Body Mass Index) Calculator
+// Interactive — uses get() to read weight and height
+// Demonstrates: get(), arithmetic, if/elif, built-ins
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║   RDX BMI Calculator                     ║")
+    call("║   Body Mass Index Health Checker         ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    call("BMI = weight(kg) / (height(m) * height(m))")
+    call("We use integer approximations for bare-metal math.")
+    nl()
+
+    // Read inputs
+    num weight_kg = get("Enter your weight in kg (e.g. 70): ")
+    nl()
+    num height_cm = get("Enter your height in cm (e.g. 175): ")
+    nl()
+
+    call("──────────────────────────────────────────")
+
+    // BMI formula: weight / (height_m * height_m)
+    // height_m = height_cm / 100
+    // To avoid floats: BMI * 10000 = weight * 10000 / (height_cm * height_cm)
+    num bmi_scaled = weight_kg * 10000 / (height_cm * height_cm)
+    num bmi_whole  = bmi_scaled / 100
+    num bmi_frac   = mod(bmi_scaled, 100)
+
+    call("Your weight: " [weight_kg, " kg"])
+    call("Your height: " [height_cm, " cm"])
+    call("BMI:         " [bmi_whole, "." , bmi_frac])
+    nl()
+
+    call("── Health Classification ─────────────────")
+    if bmi_whole < 18 {
+        call("  Category: ⚠ Underweight")
+        call("  Advice:   Eat more nutritious food.")
+    } elif bmi_whole < 25 {
+        call("  Category: ✓ Normal Weight")
+        call("  Advice:   Great! Maintain your lifestyle.")
+    } elif bmi_whole < 30 {
+        call("  Category: ⚠ Overweight")
+        call("  Advice:   Exercise regularly, watch diet.")
+    } elif bmi_whole < 35 {
+        call("  Category: ⚠ Obese (Class I)")
+        call("  Advice:   Consult a doctor for guidance.")
+    } else {
+        call("  Category: ✗ Severely Obese")
+        call("  Advice:   Seek medical attention soon.")
+    }
+
+    nl()
+
+    // Ideal weight range (BMI 18-25)
+    num ideal_lo = 18 * height_cm * height_cm / 10000
+    num ideal_hi = 25 * height_cm * height_cm / 10000
+    call("── Ideal Weight Range for Your Height ────")
+    call("  " [ideal_lo, " kg  to  " , ideal_hi, " kg"])
+
+    num diff_lo = weight_kg - ideal_lo
+    num diff_hi = ideal_hi - weight_kg
+    if weight_kg < ideal_lo {
+        num shortfall = ideal_lo - weight_kg
+        call("  You need to gain ~" [shortfall, " kg to be in range"])
+    } elif weight_kg > ideal_hi {
+        num excess = weight_kg - ideal_hi
+        call("  You need to lose ~" [excess, " kg to be in range"])
+    } else {
+        call("  You are within the ideal range!")
+    }
+
+    nl()
+    call("BMI calculation complete. Stay healthy! 🐝")
+}

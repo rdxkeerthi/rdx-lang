@@ -1,0 +1,95 @@
+// ── quiz.rdx ──────────────────────────────────────────────────
+// A simple math quiz game using get() for user input
+// Tests addition, multiplication, and basic math knowledge
+
+sys.rdx {
+    call("╔══════════════════════════════════════════╗")
+    call("║         RDX Math Quiz Game               ║")
+    call("║    Answer 5 questions correctly!         ║")
+    call("╚══════════════════════════════════════════╝")
+    nl()
+
+    mut num score = 0
+    num total = 5
+
+    // Question 1
+    call("Question 1: What is 7 + 8?")
+    num q1 = get("Your answer: ")
+    nl()
+    if q1 == 15 {
+        call("✓ Correct!")
+        score = score + 1
+    } else {
+        call("✗ Wrong! Answer is 15")
+    }
+    nl()
+
+    // Question 2
+    call("Question 2: What is 12 * 4?")
+    num q2 = get("Your answer: ")
+    nl()
+    if q2 == 48 {
+        call("✓ Correct!")
+        score = score + 1
+    } else {
+        call("✗ Wrong! Answer is 48")
+    }
+    nl()
+
+    // Question 3
+    call("Question 3: What is 100 - 37?")
+    num q3 = get("Your answer: ")
+    nl()
+    if q3 == 63 {
+        call("✓ Correct!")
+        score = score + 1
+    } else {
+        call("✗ Wrong! Answer is 63")
+    }
+    nl()
+
+    // Question 4
+    call("Question 4: What is 9 * 9?")
+    num q4 = get("Your answer: ")
+    nl()
+    if q4 == 81 {
+        call("✓ Correct!")
+        score = score + 1
+    } else {
+        call("✗ Wrong! Answer is 81")
+    }
+    nl()
+
+    // Question 5
+    call("Question 5: What is 2 to the power of 10?")
+    num q5 = get("Your answer: ")
+    nl()
+    if q5 == 1024 {
+        call("✓ Correct!")
+        score = score + 1
+    } else {
+        call("✗ Wrong! Answer is 1024")
+    }
+
+    // Results
+    nl()
+    call("════════════════════════════════")
+    call("Quiz Complete!")
+    call("Your score: " [score, " / " , total])
+
+    num percent = score * 100 / total
+    call("Percentage: " [percent, "%"])
+    nl()
+
+    if score == 5 {
+        call("🏆 Perfect score! You are a math genius!")
+    } elif score >= 4 {
+        call("🌟 Excellent! Almost perfect!")
+    } elif score >= 3 {
+        call("👍 Good job! Keep practicing!")
+    } elif score >= 2 {
+        call("📚 Not bad. Study a bit more!")
+    } else {
+        call("💪 Keep trying! Math takes practice.")
+    }
+}

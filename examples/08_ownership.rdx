@@ -1,10 +1,8 @@
-sys.rdx{
-    // test ownership demonstration
-    num = 42
-    
-    // In a Rust-like system, this would move ownership
-    owner1 = num
-    owner2 = owner1 // this would be an error if move semantics apply
-    
-    call("ownership test complete : " [owner2]);
+sys.rdx {
+    num owner1 = 42
+
+    // re-assign to another variable (move semantics)
+    num owner2 = owner1
+
+    call("ownership test complete : " [owner2])
 }
