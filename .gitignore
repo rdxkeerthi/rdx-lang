@@ -46,3 +46,5 @@ tooling/vscode-rdx/*.vsix
 *~
 .DS_Store
 Thumbs.db
+.skill
+
