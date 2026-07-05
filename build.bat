@@ -9,7 +9,7 @@ set PATH=%MINGW%;%PATH%
 :: Compiler flags
 set CFLAGS=-std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2
 set LDFLAGS=-lkernel32
-set SRCS=src\main.c src\lexer.c src\parser.c src\analyzer.c src\codegen.c
+set SRCS=src\main.c src\lexer.c src\parser.c src\analyzer.c src\codegen.c src\aot.c src\diag.c
 
 echo [build.bat] Toolchain check...
 gcc --version | findstr "gcc"
@@ -22,6 +22,7 @@ if "%1"=="" goto build_compiler
 if "%1"=="compiler" goto build_compiler
 if "%1"=="test_core" goto build_test_core
 if "%1"=="test_lexer" goto build_test_lexer
+if "%1"=="test_parser" goto build_test_parser
 if "%1"=="test_jit" goto build_test_jit
 if "%1"=="hello" goto build_hello
 if "%1"=="all" goto build_all
@@ -59,13 +60,27 @@ goto :eof
 :build_test_lexer
 echo.
 echo [test_lexer] Building...
-gcc %CFLAGS% -o test_lexer.exe src\test_lexer.c src\lexer.c %LDFLAGS%
+gcc %CFLAGS% -o test_lexer.exe src\test_lexer.c src\lexer.c src\diag.c %LDFLAGS%
 if errorlevel 1 (
     echo [test_lexer] BUILD FAILED
     exit /b 1
 )
 echo [test_lexer] Running...
 test_lexer.exe
+goto :eof
+
+:: ---------------------------------------------------------------------------
+::  TEST: parser smoke test
+:: ---------------------------------------------------------------------------
+:build_test_parser
+echo.
+echo [test_parser] Building...
+gcc %CFLAGS% -o test_parser.exe src\test_parser.c src\parser.c src\lexer.c src\diag.c %LDFLAGS%
+if errorlevel 1 (
+    echo [test_parser] BUILD FAILED
+    exit /b 1
+)
+echo [test_parser] Built.
 goto :eof
 
 :: ---------------------------------------------------------------------------
@@ -121,8 +136,12 @@ goto :eof
 :: ---------------------------------------------------------------------------
 :build_all
 call :build_compiler
-call build.bat test_core
 call build.bat test_lexer
+call build.bat test_parser
 call build.bat test_jit
 call build.bat hello
+echo [build_all] Running Self-Host Step 10 Lexer Test...
+call tests\test_step10_selfhost.bat
+echo [build_all] Running Self-Host Step 11 Parser Test...
+call tests\test_step11_selfhost_parser.bat
 goto :eof

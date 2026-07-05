@@ -3,8 +3,7 @@
  * Target : x86-64 Windows, MinGW -nostdlib -lkernel32
  */
 #include "lexer.h"
-
-/* ============================================================ §1 Char helpers */
+#include "diag.h"/* ============================================================ §1 Char helpers */
 static inline bool lx_is_alpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
@@ -20,7 +19,7 @@ static inline char lx_peek2(const Lexer *L) {
 }
 static inline char lx_advance(Lexer *L) {
     char c = L->source[L->pos++];
-    if (c == '\n') L->line++;
+    if (c == '\n') { L->line++; L->line_start_pos = L->pos; }
     return c;
 }
 
@@ -70,8 +69,6 @@ static const KWEntry kw_table[] = {
     { "not",   TOK_NOT   },
     { "true",  TOK_TRUE  },
     { "false", TOK_FALSE },
-    { "alloc", TOK_ALLOC },
-    { "drop",  TOK_DROP  },
     { "sys",   TOK_SYS   },
     { "call",  TOK_CALL  },
     { "get",   TOK_GET   },
@@ -80,11 +77,16 @@ static const KWEntry kw_table[] = {
     { "match", TOK_MATCH },
     { "case",  TOK_CASE  },
     { "continue", TOK_CONTINUE },
-    /* backward-compat aliases */
+    /* Error handling */
+    { "ok",      TOK_OK     },
+    { "err",     TOK_ERR    },
+    { "some",    TOK_SOME   },
+    { "none",    TOK_NONE   },
     { "fn",      TOK_MAKE   },
     { "return",  TOK_RET    },
     { "blueprint", TOK_SHAPE },
-    { "println", TOK_CALL   },  /* println == call with newline */
+
+    { "extern",  TOK_EXTERN },
     { NULL, 0 }
 };
 
@@ -96,22 +98,16 @@ static TokenType lx_lookup_kw(const char *word) {
 }
 
 /* ============================================================ §5 Error */
-static void lx_error(Lexer *L, int line, const char *msg) {
+static void lx_error(Lexer *L, int line, int col, int len, const char *msg) {
     L->had_error = 1;
-    rdx_print_err("[RDX LEX ERROR] line ");
-    char lbuf[12]; char *p = lbuf + 11; *p = '\0';
-    int tmp = line;
-    if (tmp <= 0) { *--p = '0'; }
-    else { while (tmp) { *--p = '0' + (tmp % 10); tmp /= 10; } }
-    rdx_print_err(p);
-    rdx_print_err(": "); rdx_print_err(msg); rdx_print_err("\r\n");
+    rdx_diag_error(line, col, len, "LEX ERROR", msg);
 }
 
 /* ============================================================ §6 Emit */
-static void lx_emit(Lexer *L, TokenType type, const char *val, int line) {
-    if (L->token_count >= (int)MAX_TOKENS) { lx_error(L, line, "token buffer overflow"); return; }
+static void lx_emit(Lexer *L, TokenType type, const char *val, int line, int col) {
+    if (L->token_count >= (int)MAX_TOKENS) { lx_error(L, line, col, 1, "token buffer overflow"); return; }
     Token *t = &L->tokens[L->token_count++];
-    t->type = type; t->line = line;
+    t->type = type; t->line = line; t->col = col;
     my_strncpy(t->value, val, 255); t->value[255] = '\0';
 }
 
@@ -119,15 +115,17 @@ static void lx_emit(Lexer *L, TokenType type, const char *val, int line) {
 static void lx_scan_ident(Lexer *L) {
     int start_line = L->line;
     usize start = L->pos;
+    int start_col = (int)(start - L->line_start_pos + 1);
     while (L->pos < L->length && lx_is_alnum(lx_peek(L))) L->pos++;
     usize len = L->pos - start; if (len > 255) len = 255;
     char word[256]; my_memcpy(word, L->source + start, len); word[len] = '\0';
-    lx_emit(L, lx_lookup_kw(word), word, start_line);
+    lx_emit(L, lx_lookup_kw(word), word, start_line, start_col);
 }
 
 static void lx_scan_number(Lexer *L) {
     int start_line = L->line;
     usize start = L->pos;
+    int start_col = (int)(start - L->line_start_pos + 1);
     bool is_float = FALSE;
     while (L->pos < L->length) {
         char c = lx_peek(L);
@@ -140,17 +138,19 @@ static void lx_scan_number(Lexer *L) {
     }
     usize len = L->pos - start; if (len > 63) len = 63;
     char buf[64]; my_memcpy(buf, L->source + start, len); buf[len] = '\0';
-    lx_emit(L, is_float ? TOK_FLT_LIT : TOK_NUM_LIT, buf, start_line);
+    lx_emit(L, is_float ? TOK_FLT_LIT : TOK_NUM_LIT, buf, start_line, start_col);
 }
 
 static void lx_scan_string(Lexer *L) {
     int start_line = L->line;
+    usize start = L->pos;
+    int start_col = (int)(start - L->line_start_pos + 1);
     L->pos++; /* consume '"' */
     char buf[4097]; usize out = 0;
     while (L->pos < L->length) {
         char c = L->source[L->pos];
         if (c == '"') { L->pos++; break; }
-        if (c == '\n' || c == '\r') { lx_error(L, start_line, "unterminated string"); break; }
+        if (c == '\n' || c == '\r') { lx_error(L, start_line, start_col, 1, "unterminated string"); break; }
         if (c == '\\') {
             L->pos++;
             if (L->pos >= L->length) break;
@@ -162,64 +162,68 @@ static void lx_scan_string(Lexer *L) {
                 default: buf[out++] = '\\'; buf[out++] = esc; break;
             }
         } else { buf[out++] = c; L->pos++; }
-        if (out >= 4096) { lx_error(L, start_line, "string literal too long"); break; }
+        if (out >= 4096) { lx_error(L, start_line, start_col, 1, "string literal too long"); break; }
     }
     buf[out] = '\0';
-    lx_emit(L, TOK_STR_LIT, buf, start_line);
+    lx_emit(L, TOK_STR_LIT, buf, start_line, start_col);
 }
 
 /* ============================================================ §8 Main dispatch */
 static void lx_next(Lexer *L) {
     lx_skip(L);
-    if (L->pos >= L->length) { lx_emit(L, TOK_EOF, "", L->line); return; }
+    if (L->pos >= L->length) { lx_emit(L, TOK_EOF, "", L->line, (int)(L->pos - L->line_start_pos + 1)); return; }
     int cur_line = L->line;
+    int cur_col = (int)(L->pos - L->line_start_pos + 1);
     char c = lx_peek(L);
     if (lx_is_alpha(c)) { lx_scan_ident(L);  return; }
     if (lx_is_digit(c)) { lx_scan_number(L); return; }
     if (c == '"')        { lx_scan_string(L); return; }
     lx_advance(L);
     switch (c) {
-        case '+': lx_emit(L, TOK_PLUS,     "+",  cur_line); break;
-        case '*': lx_emit(L, TOK_STAR,     "*",  cur_line); break;
-        case '%': lx_emit(L, TOK_PERCENT,  "%",  cur_line); break;
-        case '(': lx_emit(L, TOK_LPAREN,   "(",  cur_line); break;
-        case ')': lx_emit(L, TOK_RPAREN,   ")",  cur_line); break;
-        case '{': lx_emit(L, TOK_LBRACE,   "{",  cur_line); break;
-        case '}': lx_emit(L, TOK_RBRACE,   "}",  cur_line); break;
-        case '[': lx_emit(L, TOK_LBRACKET, "[",  cur_line); break;
-        case ']': lx_emit(L, TOK_RBRACKET, "]",  cur_line); break;
-        case ';': lx_emit(L, TOK_SEMICOLON,";",  cur_line); break;
-        case ',': lx_emit(L, TOK_COMMA,    ",",  cur_line); break;
-        case ':': lx_emit(L, TOK_COLON,    ":",  cur_line); break;
-        case '/': lx_emit(L, TOK_SLASH,    "/",  cur_line); break;
+        case '+': lx_emit(L, TOK_PLUS,     "+",  cur_line, cur_col); break;
+        case '*': lx_emit(L, TOK_STAR,     "*",  cur_line, cur_col); break;
+        case '%': lx_emit(L, TOK_PERCENT,  "%",  cur_line, cur_col); break;
+        case '(': lx_emit(L, TOK_LPAREN,   "(",  cur_line, cur_col); break;
+        case ')': lx_emit(L, TOK_RPAREN,   ")",  cur_line, cur_col); break;
+        case '{': lx_emit(L, TOK_LBRACE,   "{",  cur_line, cur_col); break;
+        case '}': lx_emit(L, TOK_RBRACE,   "}",  cur_line, cur_col); break;
+        case '[': lx_emit(L, TOK_LBRACKET, "[",  cur_line, cur_col); break;
+        case ']': lx_emit(L, TOK_RBRACKET, "]",  cur_line, cur_col); break;
+        case ';': lx_emit(L, TOK_SEMICOLON,";",  cur_line, cur_col); break;
+        case ',': lx_emit(L, TOK_COMMA,    ",",  cur_line, cur_col); break;
+        case ':': lx_emit(L, TOK_COLON,    ":",  cur_line, cur_col); break;
+        case '/': lx_emit(L, TOK_SLASH,    "/",  cur_line, cur_col); break;
         case '.':
-            if (lx_peek(L) == '.') { lx_advance(L); lx_emit(L, TOK_DOTDOT, "..", cur_line); }
-            else                   { lx_emit(L, TOK_DOT, ".", cur_line); }
+            if (lx_peek(L) == '.') { lx_advance(L); lx_emit(L, TOK_DOTDOT, "..", cur_line, cur_col); }
+            else                   { lx_emit(L, TOK_DOT, ".", cur_line, cur_col); }
             break;
         case '-':
-            if (lx_peek(L) == '>') { lx_advance(L); lx_emit(L, TOK_ARROW, "->", cur_line); }
-            else                   { lx_emit(L, TOK_MINUS, "-", cur_line); }
+            if (lx_peek(L) == '>') { lx_advance(L); lx_emit(L, TOK_ARROW, "->", cur_line, cur_col); }
+            else                   { lx_emit(L, TOK_MINUS, "-", cur_line, cur_col); }
             break;
         case '=':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_EQ, "==", cur_line); }
-            else                   { lx_emit(L, TOK_ASSIGN, "=", cur_line); }
+            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_EQ, "==", cur_line, cur_col); }
+            else                   { lx_emit(L, TOK_ASSIGN, "=", cur_line, cur_col); }
             break;
         case '!':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_NEQ, "!=", cur_line); }
-            else { lx_error(L, cur_line, "unexpected '!'"); lx_emit(L, TOK_UNKNOWN, "!", cur_line); }
+            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_NEQ, "!=", cur_line, cur_col); }
+            else { lx_error(L, cur_line, cur_col, 1, "unexpected '!'"); lx_emit(L, TOK_UNKNOWN, "!", cur_line, cur_col); }
             break;
         case '<':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_LTE, "<=", cur_line); }
-            else                   { lx_emit(L, TOK_LT, "<", cur_line); }
+            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_LTE, "<=", cur_line, cur_col); }
+            else                   { lx_emit(L, TOK_LT, "<", cur_line, cur_col); }
             break;
         case '>':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_GTE, ">=", cur_line); }
-            else                   { lx_emit(L, TOK_GT, ">", cur_line); }
+            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_GTE, ">=", cur_line, cur_col); }
+            else                   { lx_emit(L, TOK_GT, ">", cur_line, cur_col); }
+            break;
+        case '?':
+            lx_emit(L, TOK_QUESTION, "?", cur_line, cur_col);
             break;
         default: {
             char msg[48] = "unexpected character: '?'"; msg[23] = c;
-            lx_error(L, cur_line, msg);
-            char unk[2] = { c, '\0' }; lx_emit(L, TOK_UNKNOWN, unk, cur_line);
+            lx_error(L, cur_line, cur_col, 1, msg);
+            char unk[2] = { c, '\0' }; lx_emit(L, TOK_UNKNOWN, unk, cur_line, cur_col);
             break;
         }
     }
@@ -228,7 +232,7 @@ static void lx_next(Lexer *L) {
 /* ============================================================ §9 Public API */
 void lexer_init(Lexer *L, const char *source) {
     L->source = source; L->pos = 0; L->length = my_strlen(source);
-    L->line = 1; L->token_count = 0; L->had_error = 0;
+    L->line = 1; L->line_start_pos = 0; L->token_count = 0; L->had_error = 0;
     L->tokens = (Token*)rdx_alloc_bump(sizeof(Token) * MAX_TOKENS);
     if (L->tokens == NULL) rdx_panic("lexer_init: OOM");
 }
@@ -247,12 +251,13 @@ const char *token_type_name(TokenType t) {
         "num","chr","flt","blo","dob","byt",
         "make","ret","if","elif","else","loop","break","when","shape","fix","mut",
         "load","pub","as","in","and","or","not","true","false",
-        "alloc","drop","sys","call",
+        "alloc","drop","sys","call","get","safe","fail","match","case","continue",
+        "ok","err","some","none","?","extern",
         "IDENT",
         "+","-","*","/","%",
         "==","!=","<",">","<=",">=",
         "=","->","..",
-        "(",")","{","}","[","]",";",",",".",":"
+        "(",")","{","}","[","]",";",",",".",":",
         "EOF","UNKNOWN",NULL
     };
     if ((int)t < 0 || t >= TOK_COUNT) return "???";

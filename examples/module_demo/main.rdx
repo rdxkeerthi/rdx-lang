@@ -1,0 +1,12 @@
+// examples/module_demo/main.rdx
+load "examples/module_demo/mathlib.rdx";
+
+make main() -> num {
+    fix s = square(5);
+    fix c = cube(3);
+    call("square(5): " [s]);
+    call("cube(3): " [c]);
+    ret 0;
+}
+
+main();

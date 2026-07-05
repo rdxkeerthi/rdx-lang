@@ -9,9 +9,20 @@
 
 #define RDX_DEFINE_ENTRY
 #include "codegen.h"   /* pulls in parser.h -> lexer.h -> core.h */
+#include "aot.h"
+#include "diag.h"
+#include "analyzer.h"
 
 /* ---- Command-line helper (GetCommandLineA-free argv parse) ---- */
 extern char* __stdcall GetCommandLineA(void);
+
+/* GCC implicitly emits calls to memcpy and memset for struct assignment/initialization */
+void *memcpy(void *dst, const void *src, usize n) {
+    return my_memcpy(dst, src, n);
+}
+void *memset(void *dst, i32 c, usize n) {
+    return my_memset(dst, c, n);
+}
 
 static int split_cmdline(char *cmdline, char **argv, int max_args) {
     int argc = 0;
@@ -48,9 +59,13 @@ int rdx_compiler_main(void) {
     }
 
     const char *src_path = argv[1];
+    int is_transpile = 0;
     
     if (my_strcmp(argv[1], "run") == 0 && argc >= 3) {
         src_path = argv[2];
+    } else if (my_strcmp(argv[1], "transpile") == 0 && argc >= 3) {
+        src_path = argv[2];
+        is_transpile = 1;
     }
 
     /* ---- Phase 1: Read source file ---- */
@@ -58,6 +73,8 @@ int rdx_compiler_main(void) {
     usize src_len = 0;
     char *source  = rdx_read_file(src_path, &src_len);
     if (!source) { rdx_print_err("[rdx] Failed to read source\r\n"); return 1; }
+
+    rdx_diag_init(source);
 
     /* ---- Phase 2: Lex ---- */
     rdx_print("[rdx] Lexing...\r\n");
@@ -81,18 +98,38 @@ int rdx_compiler_main(void) {
     rdx_print("[rdx] "); rdx_print_num(rdx_node_count);
     rdx_print(" AST nodes\r\n");
 
-    /* ---- Phase 4: JIT Execute ---- */
-    rdx_print("[rdx] JIT Executing...\r\n");
-    JitEngine *jit = (JitEngine*)rdx_alloc_bump(sizeof(JitEngine));
-    if (!jit) { rdx_print_err("[rdx] OOM for JitEngine\r\n"); return 1; }
-    
-    jit_init(jit);
-    int ret = jit_run(jit, root);
-    if (ret < 0 || jit->had_error) {
-        rdx_print_err("[rdx] JIT errors during execution.\r\n"); return 1;
+    /* ---- Phase 3b: Semantic Ownership Analysis ---- */
+    rdx_print("[rdx] Semantic Analysis...\r\n");
+    int sa_res = rdx_analyze_ownership(root);
+    rdx_print("[rdx] Semantic Analysis completed with code "); rdx_print_num(sa_res); rdx_print("\r\n");
+    if (sa_res != 0) {
+        rdx_print_err("[rdx] Memory safety errors detected — aborting\r\n");
+        return 1;
     }
-    
-    rdx_print("[rdx] Execution completed successfully.\r\n");
+
+    /* ---- Phase 4: Execute / Transpile ---- */
+    if (is_transpile) {
+        rdx_print("[rdx] Transpiling...\r\n");
+        int ret = aot_transpile(root, "out.c");
+        if (ret < 0) {
+            rdx_print_err("[rdx] Transpile failed.\r\n"); return 1;
+        }
+    } else {
+        rdx_print("[rdx] JIT Executing...\r\n");
+        rdx_print("[rdx] sizeof(JitEngine) = "); rdx_print_num((i64)sizeof(JitEngine)); rdx_print("\r\n");
+        extern u8 *rdx_bump_ptr, *rdx_bump_base;
+        rdx_print("[rdx] Bump used = "); rdx_print_num((i64)(rdx_bump_ptr - rdx_bump_base)); rdx_print("\r\n");
+        JitEngine *jit = (JitEngine*)rdx_alloc_bump(sizeof(JitEngine));
+        if (!jit) { rdx_print_err("[rdx] OOM for JitEngine\r\n"); return 1; }
+        
+        jit_init(jit);
+        int ret = jit_run(jit, root);
+        if (ret < 0 || jit->had_error) {
+            rdx_print_err("[rdx] JIT errors during execution.\r\n"); return 1;
+        }
+        
+        rdx_print("[rdx] Execution completed successfully.\r\n");
+    }
 
     return 0;
 }

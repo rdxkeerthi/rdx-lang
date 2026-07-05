@@ -1,0 +1,4 @@
+sys.rdx{
+    long_str = "A fairly long string that we will repeat to cause a buffer overflow. A fairly long string that we will repeat to cause a buffer overflow. A fairly long string that we will repeat to cause a buffer overflow. A fairly long string that we will repeat to cause a buffer overflow. A fairly long string that we will repeat to cause a buffer overflow. "
+    call("Result: " [long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str, long_str])
+}

@@ -20,18 +20,13 @@ language targeting 64-bit Windows.  The compiler pipeline is a classical
        ▼
   [PARSER]      → Abstract Syntax Tree (AST)
        │
-       ▼
-  [SEMANTIC]    → Type-checked, annotated AST  (future phase)
+       ├─► [JIT EXECUTION]  → Direct AST interpretation
        │
-       ▼
-  [CODEGEN]     → NASM Win64 .asm file
-       │
-       ▼
-  [ASSEMBLER]   → nasm -f win64 output.asm -o output.obj
-       │
-       ▼
-  [LINKER]      → ld output.obj -lkernel32 -o output.exe   (MinGW ld)
-                  — OR —  link.exe output.obj kernel32.lib  (MSVC link)
+       └─► [AOT TRANSPILE]  → C Source Code (.c)
+               │
+               ▼
+           [C COMPILER]     → Native Executable (.exe)
+                              (e.g., GCC, Clang, MSVC)
 
 ================================================================================
   WINDOWS VS LINUX — KEY DIFFERENCES
@@ -244,12 +239,12 @@ language targeting 64-bit Windows.  The compiler pipeline is a classical
   2. Compile the RDX compiler:
        gcc -nostdlib -O2 -o rdxc.exe src/main.c -lkernel32
 
-  3. Compile an RDX source file:
-       rdxc.exe hello.rdx -o hello.asm
-       nasm -f win64 hello.asm -o hello.obj
-       ld hello.obj -lkernel32 -o hello.exe   (MinGW ld)
+  3. Run an RDX source file via JIT:
+       rdxc.exe run hello.rdx
 
-  4. Run:
+  4. Compile an RDX source file to a native executable (AOT):
+       rdxc.exe transpile hello.rdx
+       gcc -O2 -o hello.exe out.c
        hello.exe
 
 ================================================================================
@@ -263,7 +258,8 @@ language targeting 64-bit Windows.  The compiler pipeline is a classical
   │   ├── test_core.c         ← smoke-test for core.h          [STEP 1]
   │   ├── lexer.h / lexer.c   ← tokeniser                      [STEP 2]
   │   ├── parser.h / parser.c ← AST builder                    [STEP 3]
-  │   ├── codegen.h/codegen.c ← Win64 NASM emitter             [STEP 4]
+  │   ├── jit.h / jit.c       ← AST interpreter (JIT)          [STEP 4]
+  │   ├── aot.h / aot.c       ← AST-to-C Transpiler            [STEP 9]
   │   └── main.c              ← compiler entry point           [STEP 5]
   ├── examples/
   │   └── hello.rdx           ← first RDX program

@@ -1,0 +1,30 @@
+name: RDX CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Compile RDX (Freestanding Linux)
+        run: make
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Compile RDX (Windows)
+        run: |
+          gcc -std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2 -o rdx_bin.exe src\main.c src\lexer.c src\parser.c src\analyzer.c src\codegen.c -lkernel32
+      - name: Run Tests
+        run: |
+          .\tests\test_step1_functions.bat
+          .\tests\test_step2_3_structs_arrays.bat
+          .\tests\test_step4_arenas.bat
+          .\tests\test_step5_results.bat
+          .\tests\test_step6_modules.bat

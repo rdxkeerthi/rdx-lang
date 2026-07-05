@@ -1,0 +1,6 @@
+mut num x = 5;
+
+// Trigger an analyzer error (use after free)
+num a = 10;
+num b = a;
+call("value: " [a]);

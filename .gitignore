@@ -1,10 +1,48 @@
-rdx_bin.exe
-*.exe
+# ── Compiler build outputs ──────────────────────────────────────
 *.obj
+*.o
 *.asm
 *.pdb
 *.ilk
+
+# ── Executable binaries (keep intentional release/tool binaries) ─
+# Whitelisted: rdx_bin.exe (release), nasm.exe (tool dependency)
+# All other .exe files are ignored
+*.exe
+!rdx_bin.exe
+!nasm.exe
+!tests/trim_output.exe
+
+# ── Generated text dumps (lex/parse/step outputs) ───────────────
+out.c
+out.txt
+out_lex.txt
+out_parse.txt
+rdx_lex.txt
+rdx_lex_raw.txt
+rdx_parse.txt
+rdx_parse_raw.txt
+c_lex.txt
+c_lex_raw.txt
+c_parse.txt
+c_parse_raw.txt
+step*_out.txt
+build_log*.txt
+
+# ── Test runner temporaries ─────────────────────────────────────
+tmp_*.txt
+tmp_*.exe
+
+# ── VS Code extension build outputs ────────────────────────────
+tooling/vscode-rdx/node_modules/
+tooling/vscode-rdx/*.vsix
+
+# ── Editor / OS files ───────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
 .vs/
 *.swp
 *.bak
 *~
+.DS_Store
+Thumbs.db

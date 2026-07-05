@@ -57,6 +57,14 @@ typedef enum {
     TOK_CASE,          /* case  — match arm              */
     TOK_CONTINUE,      /* continue — skip loop iteration */
 
+    /* Structured Error Handling (Step 5) */
+    TOK_OK,            /* ok    — success result         */
+    TOK_ERR,           /* err   — error result           */
+    TOK_SOME,          /* some  — optional with value    */
+    TOK_NONE,          /* none  — empty optional         */
+    TOK_QUESTION,      /* ?     — propagate operator     */
+    TOK_EXTERN,        /* extern — C FFI                 */
+
     /* Identifier */
     TOK_IDENT,
 
@@ -106,6 +114,7 @@ typedef struct {
     TokenType type;
     char      value[256];   /* raw lexeme, NUL-terminated */
     int       line;         /* 1-based source line        */
+    int       col;          /* 1-based source column      */
 } Token;
 
 /* ============================================================
@@ -116,6 +125,7 @@ typedef struct {
     usize       pos;
     usize       length;
     int         line;
+    usize       line_start_pos;
     Token      *tokens;
     int         token_count;
     int         had_error;

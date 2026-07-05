@@ -9,17 +9,24 @@ typedef enum {
     NODE_ASSIGN, NODE_FN_CALL, NODE_SYS_CALL, NODE_BINARY_OP,
     NODE_LITERAL_NUM, NODE_LITERAL_STR, NODE_LITERAL_FLT, NODE_IDENT,
     NODE_SYS_BLOCK, NODE_MEMBER_ACCESS, NODE_BLOCK, NODE_ARRAY,
-    NODE_GET,           /* get("prompt") — read line from stdin */
-    NODE_SAFE_FAIL,     /* safe { } fail err { } — error handling */
+    NODE_GET,           /* get("prompt") — read line from stdin     */
+    NODE_SAFE_FAIL,     /* safe { } fail err { } — error handling   */
     NODE_MATCH,         /* match val { val -> { } } — pattern match */
-    NODE_CONTINUE,      /* continue — skip to next loop iteration */
+    NODE_CONTINUE,      /* continue — skip to next loop iteration   */
+    NODE_STRUCT_LIT,    /* ShapeName { field: val, ... }            */
+    NODE_INDEX,         /* arr[idx]                                 */
+    NODE_ARRAY_ASSIGN,  /* arr[idx] = val                           */
+    NODE_LOAD,          /* load "module" — import another .rdx file */
+    NODE_RESULT,        /* ok(val) / err(val) / some(val) / none    */
+    NODE_PROPAGATE,     /* expr?                                    */
+    NODE_EXTERN,        /* extern "msvcrt.dll" make fn(..) -> ret;  */
 } NodeType;
 
 typedef struct {
     NodeType type;
     char     sval[256];     /* string payload / ident name   */
     i64      ival;          /* integer literal value         */
-    char     op[4];         /* operator: +  -  *  /  ==  <  */
+    char     op[64];        /* operator: +  -  *  /  ==  <   */
     char     rdx_type[64];  /* declared type name            */
     int      left;          /* child index or -1             */
     int      right;
@@ -29,6 +36,7 @@ typedef struct {
     int      children[512];  /* block stmts / fn params       */
     int      child_count;
     int      line;
+    int      col;
 } ASTNode;
 
 /* Global node pool — filled by the parser */
@@ -40,9 +48,11 @@ typedef struct {
     int    count;
     int    pos;
     int    had_error;
+    int    allow_struct;
 } Parser;
 
 void parser_init (Parser *P, Token *tokens, int count);
 int  parser_parse(Parser *P);           /* returns root index or -1 */
+int  parser_parse_append(Parser *P);    /* same as parse but without resetting global pool */
 void parser_dump (int node, int depth); /* debug pretty-print       */
 #endif

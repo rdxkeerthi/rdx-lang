@@ -16,6 +16,7 @@
  */
 
 #include "analyzer.h"
+#include "diag.h"
 
 /* ============================================================
  *  Module-level analyzer state
@@ -46,20 +47,19 @@ static TrackedVariable *sa_find(const char *name) {
  * scope — RDX does not have scoped shadowing yet), its state is simply
  * reset to OWN_VALID.
  */
-static TrackedVariable *sa_register(const char *name, int line) {
+static TrackedVariable *sa_register(const char *name, int line, int col) {
     /* Update existing entry if already known */
     TrackedVariable *existing = sa_find(name);
     if (existing) {
         existing->state = OWN_VALID;
         existing->line  = line;
+        existing->col   = col;
         return existing;
     }
 
     /* Allocate a new slot */
     if (SA.count >= SA_MAX_VARS) {
-        rdx_print_err("[RDX ANALYZER] Fatal: too many variables (limit ");
-        rdx_print_num((i64)SA_MAX_VARS);
-        rdx_print_err(")\r\n");
+        rdx_diag_error(line, col, 1, "[RDX ANALYZER ERROR]", "Fatal: too many variables");
         SA.had_error = 1;
         return NULL;
     }
@@ -71,6 +71,7 @@ static TrackedVariable *sa_register(const char *name, int line) {
     t->var_name[i] = '\0';
     t->state = OWN_VALID;
     t->line  = line;
+    t->col   = col;
     return t;
 }
 
@@ -83,8 +84,9 @@ static void check_node(int idx);
  * ============================================================ */
 static void check_children(ASTNode *n) {
     for (int i = 0; i < n->child_count; i++) {
-        if (n->children[i] >= 0)
+        if (n->children[i] >= 0) {
             check_node(n->children[i]);
+        }
     }
 }
 
@@ -124,7 +126,7 @@ static void check_node(int idx) {
                 check_node(n->left);   /* will catch moved/dropped */
 
                 /* Register the destination as valid */
-                sa_register(n->sval, n->line);
+                sa_register(n->sval, n->line, n->col);
 
                 /* Mark the source as moved (only if check_node didn't
                  * already flag a fatal error — we still mark to prevent
@@ -133,15 +135,16 @@ static void check_node(int idx) {
                 if (src) {
                     src->state = OWN_MOVED;
                     src->line  = n->line;
+                    src->col   = n->col;
                 }
             } else {
                 /* Normal initialisation — check RHS, then register LHS */
                 check_node(n->left);
-                sa_register(n->sval, n->line);
+                sa_register(n->sval, n->line, n->col);
             }
         } else {
             /* Declaration without initialiser (params, etc.) */
-            sa_register(n->sval, n->line);
+            sa_register(n->sval, n->line, n->col);
         }
 
         /* Also traverse right, condition, body, else_body if present */
@@ -168,18 +171,16 @@ static void check_node(int idx) {
         if (!t) break;   /* unknown to tracker — allow */
 
         if (t->state == OWN_MOVED) {
-            rdx_print_err("[RDX MEMORY ERROR] Line ");
-            rdx_print_num((i64)n->line);
-            rdx_print_err(": Variable '");
-            rdx_print_err(t->var_name);
-            rdx_print_err("' was used after being moved.\r\n");
+            rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
+                            "[RDX MEMORY ERROR]",
+                            "You are trying to use the variable '%s' whose ownership was already moved or transferred earlier.",
+                            t->var_name);
             SA.had_error = 1;
         } else if (t->state == OWN_DROPPED) {
-            rdx_print_err("[RDX MEMORY ERROR] Line ");
-            rdx_print_num((i64)n->line);
-            rdx_print_err(": Variable '");
-            rdx_print_err(t->var_name);
-            rdx_print_err("' was used after being freed (use-after-free).\r\n");
+            rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
+                            "[RDX MEMORY ERROR]",
+                            "You are trying to use the variable '%s' that was already freed (use-after-free).",
+                            t->var_name);
             SA.had_error = 1;
         }
         break;
@@ -199,23 +200,23 @@ static void check_node(int idx) {
         if (!t) {
             /* Variable not tracked — register it as dropped so
              * any later use will still be caught. */
-            t = sa_register(n->sval, n->line);
+            t = sa_register(n->sval, n->line, n->col);
             if (!t) break;
             t->state = OWN_DROPPED;
             break;
         }
 
         if (t->state == OWN_DROPPED) {
-            rdx_print_err("[RDX MEMORY ERROR] Line ");
-            rdx_print_num((i64)n->line);
-            rdx_print_err(": Variable '");
-            rdx_print_err(t->var_name);
-            rdx_print_err("' was already freed (double-free detected).\r\n");
+            rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
+                            "[RDX MEMORY ERROR]",
+                            "You are trying to free the variable '%s' that was already freed previously (double-free detected).",
+                            t->var_name);
             SA.had_error = 1;
         } else {
             /* Legitimate drop — transition to DROPPED */
             t->state = OWN_DROPPED;
             t->line  = n->line;
+            t->col   = n->col;
         }
         break;
     }
@@ -240,6 +241,7 @@ static void check_node(int idx) {
             /* Revival: moved or dropped → valid again */
             t->state = OWN_VALID;
             t->line  = n->line;
+            t->col   = n->col;
         }
         /* (If not tracked, we don't create a new entry for
          *  bare assignments — only declarations do that.) */
@@ -262,6 +264,7 @@ static void check_node(int idx) {
      *  variables.  For Phase 3b we use a flat table and rely on the
      *  fact that RDX currently does not support name shadowing.
      * ---------------------------------------------------------- */
+    case NODE_EXTERN:
     case NODE_FN_DECL: {
         /* Register parameters (they are child VAR_DECL nodes) */
         check_children(n);
@@ -300,24 +303,24 @@ static void check_node(int idx) {
     case NODE_IF: {
         if (n->condition >= 0) check_node(n->condition);
         
-        SemanticAnalyzer state_before;
-        my_memcpy(&state_before, &SA, sizeof(SemanticAnalyzer));
+        SemanticAnalyzer *state_before = (SemanticAnalyzer*)rdx_alloc_bump(sizeof(SemanticAnalyzer));
+        my_memcpy(state_before, &SA, sizeof(SemanticAnalyzer));
         
         if (n->body >= 0) check_node(n->body);
         
-        SemanticAnalyzer state_after_if;
-        my_memcpy(&state_after_if, &SA, sizeof(SemanticAnalyzer));
+        SemanticAnalyzer *state_after_if = (SemanticAnalyzer*)rdx_alloc_bump(sizeof(SemanticAnalyzer));
+        my_memcpy(state_after_if, &SA, sizeof(SemanticAnalyzer));
         
-        my_memcpy(&SA, &state_before, sizeof(SemanticAnalyzer));
+        my_memcpy(&SA, state_before, sizeof(SemanticAnalyzer));
         
         if (n->else_body >= 0) check_node(n->else_body);
         
         /* Merge branches: if a var is moved/dropped in either branch, it's moved/dropped globally */
         for (int i = 0; i < SA.count; i++) {
-            if (state_after_if.tracked[i].state == OWN_MOVED || SA.tracked[i].state == OWN_MOVED) {
+            if (state_after_if->tracked[i].state == OWN_MOVED || SA.tracked[i].state == OWN_MOVED) {
                 SA.tracked[i].state = OWN_MOVED;
             }
-            if (state_after_if.tracked[i].state == OWN_DROPPED || SA.tracked[i].state == OWN_DROPPED) {
+            if (state_after_if->tracked[i].state == OWN_DROPPED || SA.tracked[i].state == OWN_DROPPED) {
                 SA.tracked[i].state = OWN_DROPPED;
             }
         }
@@ -369,30 +372,30 @@ static void check_node(int idx) {
         TrackedVariable *t = sa_find(n->sval);
         if (t) {
             if (t->state == OWN_MOVED) {
-                rdx_print_err("[RDX MEMORY ERROR] Line ");
-                rdx_print_num((i64)n->line);
-                rdx_print_err(": Variable '");
-                rdx_print_err(t->var_name);
-                rdx_print_err("' was used after being moved.\r\n");
+                rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
+                                "[RDX MEMORY ERROR]",
+                                "You are trying to access a member of the variable '%s' whose ownership was already moved.",
+                                t->var_name);
                 SA.had_error = 1;
             } else if (t->state == OWN_DROPPED) {
-                rdx_print_err("[RDX MEMORY ERROR] Line ");
-                rdx_print_num((i64)n->line);
-                rdx_print_err(": Variable '");
-                rdx_print_err(t->var_name);
-                rdx_print_err("' was used after being freed (use-after-free).\r\n");
+                rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
+                                "[RDX MEMORY ERROR]",
+                                "You are trying to access a member of the variable '%s' that was already freed (use-after-free).",
+                                t->var_name);
                 SA.had_error = 1;
             }
         }
         break;
     }
-
     /* ----------------------------------------------------------
      *  Leaf nodes with no sub-trees and no ownership impact
      * ---------------------------------------------------------- */
     case NODE_LITERAL_NUM:
     case NODE_LITERAL_STR:
-    case NODE_SYS_CALL:
+    case NODE_SYS_CALL: {
+        if (n->left >= 0) check_node(n->left);
+        break;
+    }
     case NODE_ALLOC:
     case NODE_BLUEPRINT:
     default:

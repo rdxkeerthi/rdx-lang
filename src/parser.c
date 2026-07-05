@@ -1,5 +1,6 @@
 /* parser.c — RDX Parser v2 (simplified syntax) */
 #include "parser.h"
+#include "diag.h"
 
 ASTNode rdx_nodes[MAX_NODES];
 int     rdx_node_count = 0;
@@ -8,20 +9,27 @@ static Token *cur(Parser *P)            { return &P->tokens[P->pos]; }
 static Token *peek(Parser *P, int off)  { int i = P->pos+off; return (i < P->count) ? &P->tokens[i] : &P->tokens[P->count-1]; }
 static Token *advance(Parser *P)        { Token *t = cur(P); if (P->pos < P->count-1) P->pos++; return t; }
 static bool   check(Parser *P, TokenType t) { return cur(P)->type == t; }
+static bool   check_next(Parser *P, TokenType t) { return peek(P,1)->type == t; }
 static bool   match(Parser *P, TokenType t) { if (check(P,t)){advance(P);return TRUE;} return FALSE; }
 static Token *expect(Parser *P, TokenType t, const char *msg) {
     if (check(P,t)) return advance(P);
-    P->had_error = 1;
-    rdx_print_err("[RDX PARSE ERROR] line "); rdx_print_num((i64)cur(P)->line);
-    rdx_print_err(": "); rdx_print_err(msg);
-    rdx_print_err(" (got '"); rdx_print_err(cur(P)->value); rdx_print_err("')\r\n");
+    if (!P->had_error) {
+        char full_msg[256];
+        my_strcpy(full_msg, msg);
+        my_strcat(full_msg, ". We instead found: '%s'");
+        int len = my_strlen(cur(P)->value);
+        if (len == 0) len = 1;
+        rdx_diag_errorf(cur(P)->line, cur(P)->col, len, "[RDX PARSE ERROR]", full_msg, cur(P)->value);
+        P->had_error = 1;
+        if (P->count > 0) P->pos = P->count - 1; /* Fast-forward to EOF to prevent cascading errors */
+    }
     return cur(P);
 }
-static int new_node(NodeType type, int line) {
+static int new_node(NodeType type, int line, int col) {
     if (rdx_node_count >= (int)MAX_NODES) rdx_panic("parser: MAX_NODES exceeded");
     ASTNode *n = &rdx_nodes[rdx_node_count];
     my_memset(n, 0, sizeof(ASTNode));
-    n->type = type; n->line = line;
+    n->type = type; n->line = line; n->col = col;
     n->left = n->right = n->condition = n->body = n->else_body = -1;
     return rdx_node_count++;
 }
@@ -30,53 +38,60 @@ static int parse_stmt(Parser *P);
 static int parse_expr(Parser *P);
 static int parse_block(Parser *P);
 
-/* ---- Primary ---- */
+static int parse_primary_inner(Parser *P);
 static int parse_primary(Parser *P) {
+    int n = parse_primary_inner(P);
+    while (check(P, TOK_QUESTION)) {
+        int line = cur(P)->line;
+    int col = cur(P)->col;
+        advance(P);
+        int prop = new_node(NODE_PROPAGATE, line, col);
+        rdx_nodes[prop].left = n;
+        n = prop;
+    }
+    return n;
+}
+
+/* ---- Primary ---- */
+static int parse_primary_inner(Parser *P) {
     Token *t = cur(P);
     int line = t->line;
+    int col = t->col;
 
     if (t->type == TOK_NUM_LIT) {
-        int n = new_node(NODE_LITERAL_NUM, line);
+        int n = new_node(NODE_LITERAL_NUM, line, col);
         const char *s = t->value; i64 v = 0;
         while (*s >= '0' && *s <= '9') v = v*10 + (*s++ - '0');
         rdx_nodes[n].ival = v; advance(P); return n;
     }
     if (t->type == TOK_STR_LIT) {
-        int n = new_node(NODE_LITERAL_STR, line);
+        int n = new_node(NODE_LITERAL_STR, line, col);
         my_strcpy(rdx_nodes[n].sval, t->value); advance(P); return n;
     }
     if (t->type == TOK_FLT_LIT) {
-        int n = new_node(NODE_LITERAL_FLT, line);
+        int n = new_node(NODE_LITERAL_FLT, line, col);
         my_strcpy(rdx_nodes[n].sval, t->value); advance(P); return n;
     }
     /* true / false */
     if (t->type == TOK_TRUE) {
-        int n = new_node(NODE_LITERAL_NUM, line); rdx_nodes[n].ival = 1; advance(P); return n;
+        int n = new_node(NODE_LITERAL_NUM, line, col); rdx_nodes[n].ival = 1; advance(P); return n;
     }
     if (t->type == TOK_FALSE) {
-        int n = new_node(NODE_LITERAL_NUM, line); rdx_nodes[n].ival = 0; advance(P); return n;
+        int n = new_node(NODE_LITERAL_NUM, line, col); rdx_nodes[n].ival = 0; advance(P); return n;
     }
     /* [ array ] */
     if (t->type == TOK_LBRACKET) {
         advance(P);
-        int n = new_node(NODE_ARRAY, line);
+        int n = new_node(NODE_ARRAY, line, col);
         while (!check(P,TOK_RBRACKET) && !check(P,TOK_EOF)) {
             if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
             rdx_nodes[n].children[rdx_nodes[n].child_count++] = parse_expr(P);
         }
         expect(P, TOK_RBRACKET, "expected ']'"); return n;
     }
-    /* alloc TypeName() */
-    if (t->type == TOK_ALLOC) {
-        advance(P); int n = new_node(NODE_ALLOC, line);
-        Token *tn = expect(P, TOK_IDENT, "expected type after 'alloc'");
-        my_strcpy(rdx_nodes[n].rdx_type, tn->value);
-        expect(P, TOK_LPAREN, "expected '('"); expect(P, TOK_RPAREN, "expected ')'");
-        return n;
-    }
     /* call("..." [args]) */
     if (t->type == TOK_CALL) {
-        advance(P); int n = new_node(NODE_SYS_CALL, line);
+        advance(P); int n = new_node(NODE_SYS_CALL, line, col);
         expect(P, TOK_LPAREN, "expected '(' after 'call'");
         if (check(P, TOK_STR_LIT)) {
             Token *arg = advance(P); my_strcpy(rdx_nodes[n].sval, arg->value);
@@ -84,7 +99,7 @@ static int parse_primary(Parser *P) {
             else rdx_nodes[n].left = -1;
         } else {
             rdx_nodes[n].sval[0] = '\0';
-            int arr = new_node(NODE_ARRAY, line);
+            int arr = new_node(NODE_ARRAY, line, col);
             rdx_nodes[arr].children[0] = parse_expr(P);
             rdx_nodes[arr].child_count = 1;
             rdx_nodes[n].left = arr;
@@ -94,7 +109,7 @@ static int parse_primary(Parser *P) {
     /* get("prompt") — read a line from stdin */
     if (t->type == TOK_GET) {
         advance(P);
-        int n = new_node(NODE_GET, line);
+        int n = new_node(NODE_GET, line, col);
         rdx_nodes[n].sval[0] = '\0';   /* default: no prompt */
         expect(P, TOK_LPAREN, "expected '(' after 'get'");
         if (check(P, TOK_STR_LIT)) {
@@ -104,11 +119,44 @@ static int parse_primary(Parser *P) {
         expect(P, TOK_RPAREN, "expected ')'");
         return n;
     }
-    /* identifier, type-kw, fn call, member access */
+    /* ok(val) / err(val) / some(val) / none
+     *
+     * These four words are lexed as keywords so they can be used as result
+     * constructors: ok(x), err("msg"), some(n), none.
+     *
+     * BUT they can also appear as plain variable names when captured by a
+     * 'fail' handler:  fail err { call("oops: " [err]) }
+     *
+     * Rule: treat as a result constructor ONLY when immediately followed by '('.
+     * Otherwise fall through and handle as a plain identifier below.
+     */
+    if ((t->type == TOK_OK || t->type == TOK_ERR ||
+         t->type == TOK_SOME || t->type == TOK_NONE) && check_next(P, TOK_LPAREN)) {
+        Token *tok = advance(P);
+        int n = new_node(NODE_RESULT, line, col);
+        my_strcpy(rdx_nodes[n].op, tok->value);
+        if (tok->type != TOK_NONE) {
+            expect(P, TOK_LPAREN, "expected '(' after result constructor");
+            rdx_nodes[n].left = parse_expr(P);
+            expect(P, TOK_RPAREN, "expected ')'");
+        } else {
+            rdx_nodes[n].left = -1;
+        }
+        return n;
+    }
+    /* ok / err / some / none used as plain identifiers (e.g. captured error var) */
+    if (t->type == TOK_OK || t->type == TOK_ERR ||
+        t->type == TOK_SOME || t->type == TOK_NONE) {
+        int n = new_node(NODE_IDENT, line, col);
+        my_strcpy(rdx_nodes[n].sval, t->value);
+        advance(P);
+        return n;
+    }
+    /* identifier, type-kw, fn call, member access, index, struct-lit */
     if (t->type == TOK_IDENT || tok_is_type(t->type)) {
         advance(P);
         if (check(P, TOK_LPAREN)) {
-            advance(P); int n = new_node(NODE_FN_CALL, line);
+            advance(P); int n = new_node(NODE_FN_CALL, line, col);
             my_strcpy(rdx_nodes[n].sval, t->value);
             while (!check(P,TOK_RPAREN) && !check(P,TOK_EOF)) {
                 if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
@@ -116,15 +164,56 @@ static int parse_primary(Parser *P) {
             }
             expect(P, TOK_RPAREN, "expected ')'"); return n;
         }
+        /* arr[idx] — index expression */
+        if (check(P, TOK_LBRACKET)) {
+            advance(P);
+            int n = new_node(NODE_INDEX, line, col);
+            my_strcpy(rdx_nodes[n].sval, t->value); /* array variable name */
+            rdx_nodes[n].left = parse_expr(P);      /* index expression */
+            expect(P, TOK_RBRACKET, "expected ']'");
+            return n;
+        }
+        /* struct literal: ShapeName { field: val, ... } */
+        if (P->allow_struct && check(P, TOK_LBRACE)) {
+            advance(P);
+            int n = new_node(NODE_STRUCT_LIT, line, col);
+            my_strcpy(rdx_nodes[n].sval, t->value); /* shape name */
+            while (!check(P,TOK_RBRACE) && !check(P,TOK_EOF)) {
+                if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
+                Token *fname = expect(P, TOK_IDENT, "expected field name");
+                expect(P, TOK_COLON, "expected ':' after field name");
+                int val_node = parse_expr(P);
+                /* store field name in val_node.sval (reuse rdx_type) */
+                int fn = new_node(NODE_VAR_DECL, fname->line, fname->col);
+                my_strcpy(rdx_nodes[fn].sval, fname->value);
+                rdx_nodes[fn].left = val_node;
+                rdx_nodes[n].children[rdx_nodes[n].child_count++] = fn;
+            }
+            expect(P, TOK_RBRACE, "expected '}'");
+            return n;
+        }
         if (check(P, TOK_DOT)) {
             advance(P);
             Token *field = expect(P, TOK_IDENT, "expected field name");
-            int n = new_node(NODE_MEMBER_ACCESS, line);
+            if (check(P, TOK_LPAREN)) {
+                advance(P);
+                int n = new_node(NODE_FN_CALL, line, col);
+                my_strcpy(rdx_nodes[n].sval, t->value);
+                my_strcat(rdx_nodes[n].sval, ".");
+                my_strcat(rdx_nodes[n].sval, field->value);
+                while (!check(P,TOK_RPAREN) && !check(P,TOK_EOF)) {
+                    if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
+                    rdx_nodes[n].children[rdx_nodes[n].child_count++] = parse_expr(P);
+                }
+                expect(P, TOK_RPAREN, "expected ')'");
+                return n;
+            }
+            int n = new_node(NODE_MEMBER_ACCESS, line, col);
             my_strcpy(rdx_nodes[n].sval, t->value);
             my_strcpy(rdx_nodes[n].rdx_type, field->value);
             return n;
         }
-        int n = new_node(NODE_IDENT, line);
+        int n = new_node(NODE_IDENT, line, col);
         my_strcpy(rdx_nodes[n].sval, t->value); return n;
     }
     /* (expr) */
@@ -133,17 +222,20 @@ static int parse_primary(Parser *P) {
         expect(P, TOK_RPAREN, "expected ')'"); return inner;
     }
 
-    P->had_error = 1;
-    rdx_print_err("[RDX PARSE ERROR] line "); rdx_print_num((i64)line);
-    rdx_print_err(": unexpected token '"); rdx_print_err(t->value); rdx_print_err("'\r\n");
-    advance(P); return new_node(NODE_LITERAL_NUM, line);
+    if (!P->had_error) {
+        int len = my_strlen(t->value); if (len == 0) len = 1;
+        rdx_diag_errorf(line, col, len, "[RDX PARSE ERROR]", "We found an unexpected word/symbol here: ", t->value);
+        P->had_error = 1;
+        if (P->count > 0) P->pos = P->count - 1; /* Fast-forward to EOF */
+    }
+    return new_node(NODE_LITERAL_NUM, line, col);
 }
 
 /* not expr */
 static int parse_unary(Parser *P) {
     if (check(P, TOK_NOT) || check(P, TOK_MINUS)) {
         Token *op = advance(P);
-        int n = new_node(NODE_BINARY_OP, op->line);
+        int n = new_node(NODE_BINARY_OP, op->line, op->col);
         my_strcpy(rdx_nodes[n].op, op->type == TOK_NOT ? "not" : "neg");
         rdx_nodes[n].left = parse_unary(P);
         rdx_nodes[n].right = -1; return n;
@@ -154,7 +246,7 @@ static int parse_mul(Parser *P) {
     int left = parse_unary(P);
     while (check(P,TOK_STAR)||check(P,TOK_SLASH)||check(P,TOK_PERCENT)) {
         Token *op = advance(P); int right = parse_unary(P);
-        int n = new_node(NODE_BINARY_OP, op->line);
+        int n = new_node(NODE_BINARY_OP, op->line, op->col);
         my_strcpy(rdx_nodes[n].op, op->value);
         rdx_nodes[n].left = left; rdx_nodes[n].right = right; left = n;
     }
@@ -164,7 +256,7 @@ static int parse_add(Parser *P) {
     int left = parse_mul(P);
     while (check(P,TOK_PLUS)||check(P,TOK_MINUS)) {
         Token *op = advance(P); int right = parse_mul(P);
-        int n = new_node(NODE_BINARY_OP, op->line);
+        int n = new_node(NODE_BINARY_OP, op->line, op->col);
         my_strcpy(rdx_nodes[n].op, op->value);
         rdx_nodes[n].left = left; rdx_nodes[n].right = right; left = n;
     }
@@ -175,7 +267,7 @@ static int parse_cmp(Parser *P) {
     while (check(P,TOK_EQ)||check(P,TOK_NEQ)||check(P,TOK_LT)||
            check(P,TOK_GT)||check(P,TOK_LTE)||check(P,TOK_GTE)) {
         Token *op = advance(P); int right = parse_add(P);
-        int n = new_node(NODE_BINARY_OP, op->line);
+        int n = new_node(NODE_BINARY_OP, op->line, op->col);
         my_strcpy(rdx_nodes[n].op, op->value);
         rdx_nodes[n].left = left; rdx_nodes[n].right = right; left = n;
     }
@@ -185,7 +277,7 @@ static int parse_expr(Parser *P) {
     int left = parse_cmp(P);
     while (check(P,TOK_AND)||check(P,TOK_OR)) {
         Token *op = advance(P); int right = parse_cmp(P);
-        int n = new_node(NODE_BINARY_OP, op->line);
+        int n = new_node(NODE_BINARY_OP, op->line, op->col);
         my_strcpy(rdx_nodes[n].op, op->value);
         rdx_nodes[n].left = left; rdx_nodes[n].right = right; left = n;
     }
@@ -195,8 +287,9 @@ static int parse_expr(Parser *P) {
 /* ---- Block ---- */
 static int parse_block(Parser *P) {
     int line = cur(P)->line;
+    int col = cur(P)->col;
     expect(P, TOK_LBRACE, "expected '{'");
-    int n = new_node(NODE_BLOCK, line);
+    int n = new_node(NODE_BLOCK, line, col);
     while (!check(P,TOK_RBRACE) && !check(P,TOK_EOF)) {
         int s = parse_stmt(P);
         if (s >= 0) rdx_nodes[n].children[rdx_nodes[n].child_count++] = s;
@@ -207,32 +300,25 @@ static int parse_block(Parser *P) {
 /* ---- Statement ---- */
 static int parse_stmt(Parser *P) {
     int line = cur(P)->line;
+    int col = cur(P)->col;
 
     /* ret expr */
     if (check(P,TOK_RET)) {
-        advance(P); int n = new_node(NODE_RETURN, line);
+        advance(P); int n = new_node(NODE_RETURN, line, col);
         rdx_nodes[n].left = parse_expr(P);
-        match(P, TOK_SEMICOLON); return n;
-    }
-
-    /* drop ident */
-    if (check(P,TOK_DROP)) {
-        advance(P); int n = new_node(NODE_DROP, line);
-        Token *id = expect(P, TOK_IDENT, "expected name after 'drop'");
-        my_strcpy(rdx_nodes[n].sval, id->value);
         match(P, TOK_SEMICOLON); return n;
     }
 
     /* break */
     if (check(P,TOK_BREAK)) {
-        advance(P); int n = new_node(NODE_RETURN, line); /* reuse RETURN for break */
+        advance(P); int n = new_node(NODE_RETURN, line, col); /* reuse RETURN for break */
         rdx_nodes[n].ival = -999; /* sentinel: break */
         match(P, TOK_SEMICOLON); return n;
     }
 
     /* continue — skip rest of loop body, go to next iteration */
     if (check(P,TOK_CONTINUE)) {
-        advance(P); int n = new_node(NODE_CONTINUE, line);
+        advance(P); int n = new_node(NODE_CONTINUE, line, col);
         match(P, TOK_SEMICOLON); return n;
     }
 
@@ -240,12 +326,12 @@ static int parse_stmt(Parser *P) {
        — structured error handling block */
     if (check(P,TOK_SAFE)) {
         advance(P);
-        int n = new_node(NODE_SAFE_FAIL, line);
+        int n = new_node(NODE_SAFE_FAIL, line, col);
         rdx_nodes[n].body = parse_block(P);  /* safe body */
         if (check(P,TOK_FAIL)) {
             advance(P);
             /* optional error variable name */
-            if (check(P,TOK_IDENT)) {
+            if (check(P,TOK_IDENT) || check(P,TOK_ERR)) {
                 Token *errvar = advance(P);
                 my_strcpy(rdx_nodes[n].sval, errvar->value);
             }
@@ -258,8 +344,10 @@ static int parse_stmt(Parser *P) {
        — pattern matching / switch */
     if (check(P,TOK_MATCH)) {
         advance(P);
-        int n = new_node(NODE_MATCH, line);
+        int n = new_node(NODE_MATCH, line, col);
+        P->allow_struct = 0;
         rdx_nodes[n].condition = parse_expr(P); /* value to match */
+        P->allow_struct = 1;
         expect(P, TOK_LBRACE, "expected '{' after match value");
         /* Each arm: val -> { stmts }  or  _ -> { stmts } */
         while (!check(P,TOK_RBRACE) && !check(P,TOK_EOF)) {
@@ -268,11 +356,13 @@ static int parse_stmt(Parser *P) {
             int pat_node;
             if (check(P,TOK_IDENT) && my_strcmp(cur(P)->value, "_") == 0) {
                 /* wildcard default arm */
-                pat_node = new_node(NODE_LITERAL_STR, cur(P)->line);
+                pat_node = new_node(NODE_LITERAL_STR, cur(P)->line, cur(P)->col);
                 my_strcpy(rdx_nodes[pat_node].sval, "_");
                 advance(P);
             } else {
+                P->allow_struct = 0;
                 pat_node = parse_expr(P);
+                P->allow_struct = 1;
             }
             expect(P, TOK_ARROW, "expected '->' in match arm");
             int body_node = parse_block(P);
@@ -285,7 +375,7 @@ static int parse_stmt(Parser *P) {
 
     /* fix NAME = value  (constant) */
     if (check(P,TOK_FIX)) {
-        advance(P); int n = new_node(NODE_VAR_DECL, line);
+        advance(P); int n = new_node(NODE_VAR_DECL, line, col);
         Token *name = expect(P, TOK_IDENT, "expected constant name");
         my_strcpy(rdx_nodes[n].sval, name->value);
         my_strcpy(rdx_nodes[n].rdx_type, "fix");
@@ -296,10 +386,10 @@ static int parse_stmt(Parser *P) {
 
     /* load module */
     if (check(P,TOK_LOAD)) {
-        advance(P); int n = new_node(NODE_IDENT, line); /* simple marker */
-        Token *mod = expect(P, TOK_IDENT, "expected module name");
-        my_strcpy(rdx_nodes[n].sval, mod->value);
-        my_strcpy(rdx_nodes[n].rdx_type, "load");
+        advance(P);
+        Token *fname = expect(P, TOK_STR_LIT, "expected filename after 'load'");
+        int n = new_node(NODE_LOAD, line, col);
+        my_strcpy(rdx_nodes[n].sval, fname->value);
         match(P, TOK_SEMICOLON); return n;
     }
 
@@ -308,12 +398,14 @@ static int parse_stmt(Parser *P) {
      * NO parentheses required — condition ends at '{'
      */
     if (check(P,TOK_IF)) {
-        advance(P); int n = new_node(NODE_IF, line);
+        advance(P); int n = new_node(NODE_IF, line, col);
+        P->allow_struct = 0;
         rdx_nodes[n].condition = parse_expr(P);
+        P->allow_struct = 1;
         rdx_nodes[n].body = parse_block(P);
         if (check(P,TOK_ELIF)) {
             /* treat elif as nested if in else_body */
-            int block_n = new_node(NODE_BLOCK, cur(P)->line);
+            int block_n = new_node(NODE_BLOCK, cur(P)->line, cur(P)->col);
             int elif_stmt = parse_stmt(P);  /* recurse: elif handled as if */
             rdx_nodes[block_n].children[rdx_nodes[block_n].child_count++] = elif_stmt;
             rdx_nodes[n].else_body = block_n;
@@ -324,11 +416,13 @@ static int parse_stmt(Parser *P) {
     }
     /* elif — same as if but triggered from above */
     if (check(P,TOK_ELIF)) {
-        advance(P); int n = new_node(NODE_IF, line);
+        advance(P); int n = new_node(NODE_IF, line, col);
+        P->allow_struct = 0;
         rdx_nodes[n].condition = parse_expr(P);
+        P->allow_struct = 1;
         rdx_nodes[n].body = parse_block(P);
         if (check(P,TOK_ELIF)) {
-            int block_n = new_node(NODE_BLOCK, cur(P)->line);
+            int block_n = new_node(NODE_BLOCK, cur(P)->line, cur(P)->col);
             rdx_nodes[block_n].children[rdx_nodes[block_n].child_count++] = parse_stmt(P);
             rdx_nodes[n].else_body = block_n;
         } else if (check(P,TOK_ELSE)) {
@@ -345,19 +439,23 @@ static int parse_stmt(Parser *P) {
      *   loop items as item { }   — iterator loop
      */
     if (check(P,TOK_LOOP)) {
-        advance(P); int n = new_node(NODE_LOOP, line);
+        advance(P); int n = new_node(NODE_LOOP, line, col);
         if (check(P,TOK_LBRACE)) {
             /* infinite loop — condition node = -1 (already) */
             rdx_nodes[n].body = parse_block(P);
         } else {
             /* parse the "start..end as var" or "expr as var" or plain "cond" */
+            P->allow_struct = 0;
             int start_expr = parse_expr(P);
+            P->allow_struct = 1;
             if (check(P,TOK_DOTDOT)) {
                 /* range: start..end as i */
                 advance(P);
+                P->allow_struct = 0;
                 int end_expr = parse_expr(P);
+                P->allow_struct = 1;
                 /* store range as ARRAY node: [start, end] */
-                int range = new_node(NODE_ARRAY, line);
+                int range = new_node(NODE_ARRAY, line, col);
                 rdx_nodes[range].children[0] = start_expr;
                 rdx_nodes[range].children[1] = end_expr;
                 rdx_nodes[range].child_count  = 2;
@@ -386,19 +484,22 @@ static int parse_stmt(Parser *P) {
 
     /* when val { pattern -> { } ... } */
     if (check(P,TOK_WHEN)) {
-        advance(P); int n = new_node(NODE_IF, line); /* reuse IF chain */
+        advance(P); int n = new_node(NODE_IF, line, col); /* reuse IF chain */
+        P->allow_struct = 0;
         rdx_nodes[n].condition = parse_expr(P);
+        P->allow_struct = 1;
         rdx_nodes[n].body = parse_block(P);
         my_strcpy(rdx_nodes[n].rdx_type, "when");
         return n;
     }
+
 
     /* sys.rdx { } */
     if (check(P,TOK_SYS)) {
         advance(P);
         expect(P, TOK_DOT,   "expected '.' after 'sys'");
         expect(P, TOK_IDENT, "expected 'rdx' after 'sys.'");
-        int n = new_node(NODE_SYS_BLOCK, line);
+        int n = new_node(NODE_SYS_BLOCK, line, col);
         rdx_nodes[n].body = parse_block(P); return n;
     }
 
@@ -418,7 +519,7 @@ static int parse_stmt(Parser *P) {
     if (check(P,TOK_MUT)) { advance(P); is_mut = TRUE; }
     if (tok_is_type(cur(P)->type)) {
         Token *type_tok = advance(P);
-        int n = new_node(NODE_VAR_DECL, line);
+        int n = new_node(NODE_VAR_DECL, line, col);
         my_strcpy(rdx_nodes[n].rdx_type, type_tok->value);
         if (is_mut) rdx_nodes[n].ival = 1; /* ival=1 = mutable flag */
 
@@ -435,15 +536,29 @@ static int parse_stmt(Parser *P) {
         match(P, TOK_SEMICOLON); return n;
     }
     if (is_mut) {
+        if (check(P, TOK_IDENT)) {
+            Token *name_tok = advance(P);
+            int n = new_node(NODE_VAR_DECL, line, col);
+            rdx_nodes[n].ival = 1; /* mutable flag */
+            my_strcpy(rdx_nodes[n].rdx_type, ""); /* inferred type */
+            my_strcpy(rdx_nodes[n].sval, name_tok->value);
+            expect(P, TOK_ASSIGN, "expected '=' after variable name");
+            rdx_nodes[n].left = parse_expr(P);
+            match(P, TOK_SEMICOLON); return n;
+        }
+        
         /* mut without type — error, but recover */
-        P->had_error = 1;
-        rdx_print_err("[RDX PARSE ERROR]: 'mut' must be followed by a type keyword\r\n");
+        if (!P->had_error) {
+            rdx_diag_error(line, col, 3, "[RDX PARSE ERROR]", "'mut' must be followed by a type keyword or variable name");
+            P->had_error = 1;
+            if (P->count > 0) P->pos = P->count - 1; /* Fast-forward to EOF */
+        }
     }
 
     /* Blueprint/shape-typed variable:  ShapeName varName = value */
     if (check(P,TOK_IDENT) && peek(P,1)->type == TOK_IDENT) {
         Token *type_tok = advance(P);
-        int n = new_node(NODE_VAR_DECL, line);
+        int n = new_node(NODE_VAR_DECL, line, col);
         my_strcpy(rdx_nodes[n].rdx_type, type_tok->value);
         Token *id = advance(P); my_strcpy(rdx_nodes[n].sval, id->value);
         expect(P, TOK_ASSIGN, "expected '='");
@@ -451,26 +566,42 @@ static int parse_stmt(Parser *P) {
         match(P, TOK_SEMICOLON); return n;
     }
 
-    /* ident = expr  or  ident.field = expr */
+    /* ident = expr  or  ident.field = expr  or  ident[idx] = expr */
     if (check(P,TOK_IDENT)) {
         Token *id = advance(P);
         if (check(P,TOK_DOT)) {
+            if (peek(P, 1)->type == TOK_IDENT && peek(P, 2)->type == TOK_LPAREN) {
+                P->pos--;
+                int n = parse_primary(P);
+                match(P, TOK_SEMICOLON); return n;
+            }
             advance(P);
             Token *field = expect(P, TOK_IDENT, "expected field name");
             expect(P, TOK_ASSIGN, "expected '='");
-            int n = new_node(NODE_ASSIGN, line);
+            int n = new_node(NODE_ASSIGN, line, col);
             my_strcpy(rdx_nodes[n].sval, id->value);
             my_strcpy(rdx_nodes[n].rdx_type, field->value);
             rdx_nodes[n].left = parse_expr(P);
             match(P, TOK_SEMICOLON); return n;
         }
+        if (check(P,TOK_LBRACKET)) {
+            advance(P);
+            int idx_expr = parse_expr(P);
+            expect(P, TOK_RBRACKET, "expected ']'");
+            expect(P, TOK_ASSIGN, "expected '=' for array assignment");
+            int n = new_node(NODE_ARRAY_ASSIGN, line, col);
+            my_strcpy(rdx_nodes[n].sval, id->value);  /* array var name */
+            rdx_nodes[n].left  = idx_expr;             /* index           */
+            rdx_nodes[n].right = parse_expr(P);        /* new value       */
+            match(P, TOK_SEMICOLON); return n;
+        }
         if (check(P,TOK_ASSIGN)) {
-            advance(P); int n = new_node(NODE_ASSIGN, line);
+            advance(P); int n = new_node(NODE_ASSIGN, line, col);
             my_strcpy(rdx_nodes[n].sval, id->value);
             rdx_nodes[n].left = parse_expr(P);
             match(P, TOK_SEMICOLON); return n;
         }
-        if (check(P,TOK_LPAREN)) {
+        if (check(P,TOK_LPAREN) || check(P,TOK_QUESTION)) {
             P->pos--;
             int n = parse_primary(P);
             match(P, TOK_SEMICOLON); return n;
@@ -478,22 +609,27 @@ static int parse_stmt(Parser *P) {
     }
 
     /* skip unknown */
-    rdx_print_err("[RDX PARSE ERROR] line "); rdx_print_num((i64)line);
-    rdx_print_err(": unexpected token '"); rdx_print_err(cur(P)->value); rdx_print_err("'\r\n");
-    P->had_error = 1; advance(P); return -1;
+    if (!P->had_error) {
+        int len = my_strlen(cur(P)->value); if (len == 0) len = 1;
+        rdx_diag_errorf(line, col, len, "[RDX PARSE ERROR]", "unexpected token '%s'", cur(P)->value);
+        P->had_error = 1;
+        if (P->count > 0) P->pos = P->count - 1; /* Fast-forward to EOF */
+    }
+    return -1;
 }
 
 /* ---- make funcName(type param, ...) -> type { } ---- */
 static int parse_fn_decl(Parser *P) {
     int line = cur(P)->line;
+    int col = cur(P)->col;
     advance(P); /* consume 'make' */
-    int n = new_node(NODE_FN_DECL, line);
+    int n = new_node(NODE_FN_DECL, line, col);
     Token *name = expect(P, TOK_IDENT, "expected function name after 'make'");
     my_strcpy(rdx_nodes[n].sval, name->value);
     expect(P, TOK_LPAREN, "expected '('");
     while (!check(P,TOK_RPAREN) && !check(P,TOK_EOF)) {
         if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
-        int pn = new_node(NODE_VAR_DECL, cur(P)->line);
+        int pn = new_node(NODE_VAR_DECL, cur(P)->line, cur(P)->col);
         /* new style: type name   e.g.  num a */
         Token *ptype = advance(P);
         my_strcpy(rdx_nodes[pn].rdx_type, ptype->value);
@@ -512,8 +648,9 @@ static int parse_fn_decl(Parser *P) {
 /* ---- shape ShapeName { type field \n ... } ---- */
 static int parse_shape_decl(Parser *P) {
     int line = cur(P)->line;
+    int col = cur(P)->col;
     advance(P); /* consume 'shape' */
-    int n = new_node(NODE_BLUEPRINT, line);
+    int n = new_node(NODE_BLUEPRINT, line, col);
     Token *name = expect(P, TOK_IDENT, "expected shape name");
     my_strcpy(rdx_nodes[n].sval, name->value);
     expect(P, TOK_LBRACE, "expected '{'");
@@ -521,7 +658,7 @@ static int parse_shape_decl(Parser *P) {
         Token *ftype = advance(P);
         Token *fname = expect(P, TOK_IDENT, "expected field name");
         match(P, TOK_SEMICOLON); /* optional semicolon between fields */
-        int fn = new_node(NODE_VAR_DECL, fname->line);
+        int fn = new_node(NODE_VAR_DECL, fname->line, fname->col);
         my_strcpy(rdx_nodes[fn].sval, fname->value);
         my_strcpy(rdx_nodes[fn].rdx_type, ftype->value);
         rdx_nodes[n].children[rdx_nodes[n].child_count++] = fn;
@@ -529,31 +666,68 @@ static int parse_shape_decl(Parser *P) {
     expect(P, TOK_RBRACE, "expected '}'"); return n;
 }
 
+/* ---- extern "library" make funcName(...) -> ret; ---- */
+static int parse_extern_decl(Parser *P) {
+    int line = cur(P)->line;
+    int col = cur(P)->col;
+    advance(P); /* consume 'extern' */
+    int n = new_node(NODE_EXTERN, line, col);
+    Token *lib = expect(P, TOK_STR_LIT, "expected library name (string literal) after 'extern'");
+    my_strcpy(rdx_nodes[n].sval, lib->value); /* store library name in sval */
+    
+    expect(P, TOK_MAKE, "expected 'make' in extern declaration");
+    Token *name = expect(P, TOK_IDENT, "expected function name after 'make'");
+    my_strcpy(rdx_nodes[n].op, name->value); /* store function name in op */
+    
+    expect(P, TOK_LPAREN, "expected '('");
+    while (!check(P,TOK_RPAREN) && !check(P,TOK_EOF)) {
+        if (rdx_nodes[n].child_count > 0) expect(P, TOK_COMMA, "expected ','");
+        int pn = new_node(NODE_VAR_DECL, cur(P)->line, cur(P)->col);
+        Token *ptype = advance(P);
+        my_strcpy(rdx_nodes[pn].rdx_type, ptype->value);
+        Token *pname = expect(P, TOK_IDENT, "expected parameter name");
+        my_strcpy(rdx_nodes[pn].sval, pname->value);
+        rdx_nodes[n].children[rdx_nodes[n].child_count++] = pn;
+    }
+    expect(P, TOK_RPAREN, "expected ')'");
+    if (check(P,TOK_ARROW)) {
+        advance(P); Token *ret = advance(P);
+        my_strcpy(rdx_nodes[n].rdx_type, ret->value);
+    }
+    match(P, TOK_SEMICOLON); /* optional semicolon */
+    return n;
+}
+
 /* ---- Top-level ---- */
 static int parse_program(Parser *P) {
-    int root = new_node(NODE_PROGRAM, 0);
+    int root = new_node(NODE_PROGRAM, 0, 0);
     while (!check(P,TOK_EOF)) {
         int n = -1;
-        if (check(P,TOK_MAKE))  n = parse_fn_decl(P);
-        else if (check(P,TOK_SHAPE)) n = parse_shape_decl(P);
-        else                    n = parse_stmt(P);
+        if      (check(P,TOK_MAKE))   n = parse_fn_decl(P);
+        else if (check(P,TOK_EXTERN)) n = parse_extern_decl(P);
+        else if (check(P,TOK_SHAPE))  n = parse_shape_decl(P);
+        else if (check(P,TOK_LOAD))   n = parse_stmt(P); /* load handled in parse_stmt */
+        else                          n = parse_stmt(P);
         if (n >= 0) rdx_nodes[root].children[rdx_nodes[root].child_count++] = n;
     }
     return root;
 }
 
 void parser_init(Parser *P, Token *tokens, int count) {
-    P->tokens = tokens; P->count = count; P->pos = 0; P->had_error = 0;
+    P->tokens = tokens; P->count = count; P->pos = 0; P->had_error = 0; P->allow_struct = 1;
 }
 int parser_parse(Parser *P) { rdx_node_count = 0; return parse_program(P); }
+int parser_parse_append(Parser *P) { return parse_program(P); }
 
 static const char *node_name(NodeType t) {
     static const char *names[] = {
         "PROGRAM","VAR_DECL","FN_DECL","RETURN","IF","LOOP","BLUEPRINT",
         "ALLOC","DROP","ASSIGN","FN_CALL","SYS_CALL","BINARY_OP",
-        "LIT_NUM","LIT_STR","LIT_FLT","IDENT","SYS_BLOCK","MEMBER_ACCESS","BLOCK","ARRAY"
+        "LIT_NUM","LIT_STR","LIT_FLT","IDENT","SYS_BLOCK","MEMBER_ACCESS","BLOCK","ARRAY",
+        "GET","SAFE_FAIL","MATCH","CONTINUE","STRUCT_LIT","INDEX","ARRAY_ASSIGN","LOAD",
+        "RESULT","PROPAGATE","EXTERN"
     };
-    return (t >= 0 && t < 21) ? names[t] : "???";
+    return (t >= 0 && t <= NODE_EXTERN) ? names[t] : "???";
 }
 void parser_dump(int idx, int depth) {
     if (idx < 0 || idx >= rdx_node_count) return;

@@ -1,0 +1,21 @@
+[rdx] Reading broken_semantic.rdx
+[rdx] Lexing...
+[rdx] 22 tokens
+[rdx] Parsing...
+[rdx] 10 AST nodes
+[rdx] AST Dump:
+PROGRAM
+  FN_DECL "main"
+    BLOCK
+      VAR_DECL "x" type=var
+        LIT_NUM ival=10
+      VAR_DECL "y" type=var
+        IDENT "x"
+      SYS_CALL
+        ARRAY
+          IDENT "x"
+[rdx] Semantic Analysis...
+[rdx] Semantic Analysis completed with code 0
+[rdx] JIT Executing...
+10
+[rdx] Execution completed successfully.

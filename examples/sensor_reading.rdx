@@ -1,0 +1,35 @@
+// sensor_reading.rdx - Step 2: Structs proof
+
+shape SensorReading {
+    num id
+    flt temp
+    blo valid
+}
+
+shape Point {
+    num x
+    num y
+}
+
+fix s1 = SensorReading { id: 1, temp: 23.5, valid: true }
+call("Sensor ID: " [s1.id])
+call("Temperature: " [s1.temp])
+call("Valid: " [s1.valid])
+
+fix s2 = SensorReading { id: 2, temp: 0.0, valid: false }
+s2.temp = 98.6
+s2.valid = true
+call("Updated sensor temp: " [s2.temp])
+
+make celsius_to_fahrenheit(flt c) -> flt {
+    ret (c * 9.0 / 5.0) + 32.0
+}
+
+fix c = 100.0
+fix f = celsius_to_fahrenheit(c)
+call("100 Celsius = " [f])
+
+fix p1 = Point { x: 0, y: 0 }
+fix p2 = Point { x: 3, y: 4 }
+call("P1 x: " [p1.x])
+call("P2 x: " [p2.x])

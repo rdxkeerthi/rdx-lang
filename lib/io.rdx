@@ -38,9 +38,6 @@ sys.rdx {
     call("io.rdx: assign to chr or num — type is auto-detected.")
     nl()
 
-    // ─── print / println aliases ─────────────────────────────
-    // print(str)   — output string without forced newline in built-in
-    // println(str) — output string + newline appended
 
     nl()
     call("io.rdx loaded successfully.")
