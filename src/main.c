@@ -1,136 +1,135 @@
 /*
- * main.c — RDX Compiler Entry Point
+ * ============================================================================
+ *  main.c  —  RDX Forensics & Cyber Investigation Language (Standalone Engine)
+ * ============================================================================
  *
- * Usage: rdx <source.rdx>
- *
- * Compile:
- *   gcc -nostdlib -O2 -o rdx.exe src/main.c src/lexer.c src/parser.c src/codegen.c -lkernel32
+ *  A syntax-free, human-first standalone programming language designed
+ *  for Cybersecurity Investigation, Threat Hunting, Incident Response,
+ *  and Network Forensics.
+ * ============================================================================
  */
 
-#define RDX_DEFINE_ENTRY
-#include "codegen.h"   /* pulls in parser.h -> lexer.h -> core.h */
-#include "aot.h"
-#include "diag.h"
-#include "analyzer.h"
+#include "rdx_engine.h"
+#include "rdx_cyber.h"
+#include "rdx_diag.h"
 
-/* ---- Command-line helper (GetCommandLineA-free argv parse) ---- */
-extern char* __stdcall GetCommandLineA(void);
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/* GCC implicitly emits calls to memcpy and memset for struct assignment/initialization */
-void *memcpy(void *dst, const void *src, usize n) {
-    return my_memcpy(dst, src, n);
-}
-void *memset(void *dst, i32 c, usize n) {
-    return my_memset(dst, c, n);
-}
+#define RDX_VERSION "v2.5.0-forensics"
 
-static int split_cmdline(char *cmdline, char **argv, int max_args) {
-    int argc = 0;
-    char *p  = cmdline;
-    while (*p && argc < max_args) {
-        while (*p == ' ' || *p == '\t') p++;
-        if (!*p) break;
-        if (*p == '"') {
-            p++;
-            argv[argc++] = p;
-            while (*p && *p != '"') p++;
-            if (*p == '"') *p++ = '\0';
-        } else {
-            argv[argc++] = p;
-            while (*p && *p != ' ' && *p != '\t') p++;
-            if (*p) *p++ = '\0';
-        }
-    }
-    return argc;
+static void print_banner(void) {
+    printf("\033[1;36m");
+    printf("  ____  ______   __  ______                         _           \n");
+    printf(" |  _ \\|  _ \\ \\ / / |  ____|                       (_)          \n");
+    printf(" | |_) | | | \\ V /  | |__ ___  _ __ ___ _ __  ___ _  ___ ___   \n");
+    printf(" |  _ <| | | |> <   |  __/ _ \\| '__/ _ \\ '_ \\/ __| |/ __/ __|  \n");
+    printf(" | |_) | |_| / . \\  | | | (_) | | |  __/ | | \\__ \\ | (__\\__ \\  \n");
+    printf(" |____/|____/_/ \\_\\ |_|  \\___/|_|  \\___|_| |_|___/_|\\___|___/  \n");
+    printf("\033[0m");
+    printf("  RDX Forensics & Cyber Investigation Language — %s\n\n", RDX_VERSION);
 }
 
-int rdx_compiler_main(void) {
-    char raw[2048];
-    my_strncpy(raw, GetCommandLineA(), 2047);
-    raw[2047] = '\0';
+static void print_help(void) {
+    print_banner();
+    printf("Usage:\n");
+    printf("  rdx <file.rdx>            Execute an investigation or forensic script\n");
+    printf("  rdx run <file.rdx>        Execute an investigation script\n");
+    printf("  rdx repl                  Launch the interactive cyber investigation shell\n");
+    printf("  rdx --version, -v         Display RDX version and capabilities\n");
+    printf("  rdx --help, -h            Show this guide and language documentation\n\n");
 
-    char *argv[16];
-    int   argc = split_cmdline(raw, argv, 16);
+    printf("Why RDX?\n");
+    printf("  Solves the critical problem in DFIR and SOC triage where analysts are\n");
+    printf("  slowed down by verbose Python boilerplate or brittle bash pipelines.\n");
+    printf("  RDX provides:\n");
+    printf("    * Syntax-Free & Easy: No boilerplate 'main()', optional semicolons.\n");
+    printf("    * Human-First Diagnostics: Explains WHERE the error is, WHY it happened,\n");
+    printf("      and HOW to FIX it with suggestions.\n");
+    printf("    * Native Cyber Primitives: IP/CIDR math, MD5/SHA256, Attack Detection,\n");
+    printf("      Network Port Assessment, Incident Alerts & Timeline natively built-in.\n");
+    printf("    * Standalone: Single binary, zero external runtime dependencies.\n\n");
 
+    printf("Forensic Modules:\n");
+    printf("  ip.is_valid(ip)           Check IPv4 format\n");
+    printf("  ip.is_private(ip)         Check RFC1918 private IP\n");
+    printf("  ip.is_public(ip)          Check public routable IP\n");
+    printf("  ip.in_subnet(ip, cidr)    Match IP in CIDR (e.g. '192.168.1.0/24')\n");
+    printf("  ip.octets(ip)             Extract octet list [192, 168, 1, 1]\n");
+    printf("  hash.md5(str)             Calculate MD5 hash\n");
+    printf("  hash.sha1(str)            Calculate SHA-1 hash\n");
+    printf("  hash.sha256(str)          Calculate SHA-256 hash\n");
+    printf("  hash.file_sha256(path)    Calculate SHA-256 of file on disk\n");
+    printf("  hash.match(h1, h2)        Case-insensitive hash comparison\n");
+    printf("  net.port_name(port)       Lookup port service (22->SSH, 443->HTTPS)\n");
+    printf("  net.port_risk(port)       Assess risk surface (e.g. 3389->CRITICAL)\n");
+    printf("  log.extract_ip(log)       Extract IPv4 address from log line\n");
+    printf("  log.extract_url(log)      Extract URL from log line\n");
+    printf("  log.extract_cve(log)      Extract CVE number (e.g. CVE-2024-38077)\n");
+    printf("  log.detect_attack(log)    Detect SQLi, XSS, Path Traversal, RCE\n");
+    printf("  alert(level, msg, detail) Structured security alert with timestamp\n");
+    printf("  timeline(event, detail)   Structured chronological event log\n\n");
+}
+
+static char *read_entire_file(const char *path, size_t *out_len) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (size < 0) { fclose(f); return NULL; }
+
+    char *buf = (char*)malloc(size + 1);
+    if (!buf) { fclose(f); return NULL; }
+    size_t read_bytes = fread(buf, 1, size, f);
+    buf[read_bytes] = '\0';
+    fclose(f);
+    if (out_len) *out_len = read_bytes;
+    return buf;
+}
+
+int main(int argc, char **argv) {
     if (argc < 2) {
-        rdx_print_err("RDX Compiler JIT v0.2 (Win64)\r\n");
-        rdx_print_err("Usage: rdx <source.rdx>\r\n");
+        rdx_engine_repl();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "help") == 0) {
+        print_help();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0) {
+        printf("RDX Forensics Language %s (Standalone Win64)\n", RDX_VERSION);
+        return 0;
+    }
+
+    if (strcmp(argv[1], "repl") == 0) {
+        rdx_engine_repl();
+        return 0;
+    }
+
+    const char *filepath = argv[1];
+    if (strcmp(argv[1], "run") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Error: 'rdx run' requires a script file argument.\n");
+            fprintf(stderr, "Usage: rdx run <investigation.rdx>\n");
+            return 1;
+        }
+        filepath = argv[2];
+    }
+
+    size_t src_len = 0;
+    char *source = read_entire_file(filepath, &src_len);
+    if (!source) {
+        fprintf(stderr, "\n\033[1;31m[RDX FILE ERROR]\033[0m Unable to open script '%s'.\n", filepath);
+        fprintf(stderr, "Please verify the path and file permissions.\n\n");
         return 1;
     }
-
-    const char *src_path = argv[1];
-    int is_transpile = 0;
-    
-    if (my_strcmp(argv[1], "run") == 0 && argc >= 3) {
-        src_path = argv[2];
-    } else if (my_strcmp(argv[1], "transpile") == 0 && argc >= 3) {
-        src_path = argv[2];
-        is_transpile = 1;
-    }
-
-    /* ---- Phase 1: Read source file ---- */
-    rdx_print("[rdx] Reading "); rdx_print(src_path); rdx_print("\r\n");
-    usize src_len = 0;
-    char *source  = rdx_read_file(src_path, &src_len);
-    if (!source) { rdx_print_err("[rdx] Failed to read source\r\n"); return 1; }
-
-    rdx_diag_init(source);
-
-    /* ---- Phase 2: Lex ---- */
-    rdx_print("[rdx] Lexing...\r\n");
-    Lexer L;
-    lexer_init(&L, source);
-    int tok_count = lexer_tokenize(&L);
-    if (tok_count < 0 || L.had_error) {
-        rdx_print_err("[rdx] Lex errors — aborting\r\n"); return 1;
-    }
-    rdx_print("[rdx] "); rdx_print_num(tok_count);
-    rdx_print(" tokens\r\n");
-
-    /* ---- Phase 3: Parse ---- */
-    rdx_print("[rdx] Parsing...\r\n");
-    Parser P;
-    parser_init(&P, L.tokens, tok_count);
-    int root = parser_parse(&P);
-    if (root < 0 || P.had_error) {
-        rdx_print_err("[rdx] Parse errors — aborting\r\n"); return 1;
-    }
-    rdx_print("[rdx] "); rdx_print_num(rdx_node_count);
-    rdx_print(" AST nodes\r\n");
-
-    /* ---- Phase 3b: Semantic Ownership Analysis ---- */
-    rdx_print("[rdx] Semantic Analysis...\r\n");
-    int sa_res = rdx_analyze_ownership(root);
-    rdx_print("[rdx] Semantic Analysis completed with code "); rdx_print_num(sa_res); rdx_print("\r\n");
-    if (sa_res != 0) {
-        rdx_print_err("[rdx] Memory safety errors detected — aborting\r\n");
-        return 1;
-    }
-
-    /* ---- Phase 4: Execute / Transpile ---- */
-    if (is_transpile) {
-        rdx_print("[rdx] Transpiling...\r\n");
-        int ret = aot_transpile(root, "out.c");
-        if (ret < 0) {
-            rdx_print_err("[rdx] Transpile failed.\r\n"); return 1;
-        }
-    } else {
-        rdx_print("[rdx] JIT Executing...\r\n");
-        rdx_print("[rdx] sizeof(JitEngine) = "); rdx_print_num((i64)sizeof(JitEngine)); rdx_print("\r\n");
-        extern u8 *rdx_bump_ptr, *rdx_bump_base;
-        rdx_print("[rdx] Bump used = "); rdx_print_num((i64)(rdx_bump_ptr - rdx_bump_base)); rdx_print("\r\n");
-        JitEngine *jit = (JitEngine*)rdx_alloc_bump(sizeof(JitEngine));
-        if (!jit) { rdx_print_err("[rdx] OOM for JitEngine\r\n"); return 1; }
-        
-        jit_init(jit);
-        int ret = jit_run(jit, root);
-        if (ret < 0 || jit->had_error) {
-            rdx_print_err("[rdx] JIT errors during execution.\r\n"); return 1;
-        }
-        
-        rdx_print("[rdx] Execution completed successfully.\r\n");
-    }
-
-    return 0;
+    fflush(stdout);
+    int ret = rdx_engine_run(filepath, source);
+    fflush(stdout);
+    free(source);
+    return ret;
 }
-

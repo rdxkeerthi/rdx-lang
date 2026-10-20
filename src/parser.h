@@ -1,58 +1,50 @@
-/* parser.h — RDX AST Parser: Public API */
+/*
+ * ============================================================================
+ *  parser.h  —  RDX Pratt Parser (Top-Down Operator Precedence)
+ * ============================================================================
+ */
+
 #ifndef RDX_PARSER_H
 #define RDX_PARSER_H
+
+#include "core.h"
+#include "token.h"
 #include "lexer.h"
+#include "ast.h"
+#include "arena.h"
 
 typedef enum {
-    NODE_PROGRAM, NODE_VAR_DECL, NODE_FN_DECL, NODE_RETURN,
-    NODE_IF, NODE_LOOP, NODE_BLUEPRINT, NODE_ALLOC, NODE_DROP,
-    NODE_ASSIGN, NODE_FN_CALL, NODE_SYS_CALL, NODE_BINARY_OP,
-    NODE_LITERAL_NUM, NODE_LITERAL_STR, NODE_LITERAL_FLT, NODE_IDENT,
-    NODE_SYS_BLOCK, NODE_MEMBER_ACCESS, NODE_BLOCK, NODE_ARRAY,
-    NODE_GET,           /* get("prompt") — read line from stdin     */
-    NODE_SAFE_FAIL,     /* safe { } fail err { } — error handling   */
-    NODE_MATCH,         /* match val { val -> { } } — pattern match */
-    NODE_CONTINUE,      /* continue — skip to next loop iteration   */
-    NODE_STRUCT_LIT,    /* ShapeName { field: val, ... }            */
-    NODE_INDEX,         /* arr[idx]                                 */
-    NODE_ARRAY_ASSIGN,  /* arr[idx] = val                           */
-    NODE_LOAD,          /* load "module" — import another .rdx file */
-    NODE_RESULT,        /* ok(val) / err(val) / some(val) / none    */
-    NODE_PROPAGATE,     /* expr?                                    */
-    NODE_EXTERN,        /* extern "msvcrt.dll" make fn(..) -> ret;  */
-} NodeType;
+    PREC_NONE = 0,
+    PREC_ASSIGNMENT,  /* = += -= *= /= */
+    PREC_OR,          /* or ||          */
+    PREC_AND,         /* and &&         */
+    PREC_BITWISE_OR,  /* |              */
+    PREC_BITWISE_XOR, /* ^              */
+    PREC_BITWISE_AND, /* &              */
+    PREC_EQUALITY,    /* == !=          */
+    PREC_COMPARISON,  /* < <= > >=      */
+    PREC_SHIFT,       /* << >>          */
+    PREC_TERM,        /* + -            */
+    PREC_FACTOR,      /* * / %          */
+    PREC_UNARY,       /* ! - ~ not      */
+    PREC_CALL,        /* () [] .        */
+    PREC_PRIMARY
+} Precedence;
 
 typedef struct {
-    NodeType type;
-    char     sval[256];     /* string payload / ident name   */
-    i64      ival;          /* integer literal value         */
-    char     op[64];        /* operator: +  -  *  /  ==  <   */
-    char     rdx_type[64];  /* declared type name            */
-    int      left;          /* child index or -1             */
-    int      right;
-    int      condition;
-    int      body;
-    int      else_body;
-    int      children[512];  /* block stmts / fn params       */
-    int      child_count;
-    int      line;
-    int      col;
-} ASTNode;
-
-/* Global node pool — filled by the parser */
-extern ASTNode rdx_nodes[];
-extern int     rdx_node_count;
-
-typedef struct {
-    Token *tokens;
-    int    count;
-    int    pos;
-    int    had_error;
-    int    allow_struct;
+    Lexer       lexer;
+    Token       current;
+    Token       previous;
+    Arena      *arena;
+    bool        had_error;
+    bool        panic_mode;
+    const char *error_msg;
 } Parser;
 
-void parser_init (Parser *P, Token *tokens, int count);
-int  parser_parse(Parser *P);           /* returns root index or -1 */
-int  parser_parse_append(Parser *P);    /* same as parse but without resetting global pool */
-void parser_dump (int node, int depth); /* debug pretty-print       */
-#endif
+void        parser_init(Parser *parser, const char *source, usize length, const char *filename, Arena *arena);
+AstProgram *parser_parse_program(Parser *parser);
+AstExpr    *parser_parse_expr(Parser *parser, Precedence precedence);
+AstStmt    *parser_parse_stmt(Parser *parser);
+AstDecl    *parser_parse_decl(Parser *parser);
+
+#endif /* RDX_PARSER_H */

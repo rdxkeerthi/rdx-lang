@@ -1,0 +1,36 @@
+// ============================================================================
+//  showcase.rdx — rdx-lang Next-Gen Architecture Showcase
+// ============================================================================
+//  Demonstrating:
+//  1. Deterministic Arena-allocated memory
+//  2. Pratt parser expression precedence
+//  3. Colorless Concurrency via Fibers / Green Threads
+//  4. Zero-Trust Capability Security Model
+// ============================================================================
+
+fn worker(id) {
+    print "  -> [Fiber", id, "] Task started in its own task arena";
+    yield;
+    print "  -> [Fiber", id, "] Resumed and finishing task cleanly";
+}
+
+fn compute_pi_approx() {
+    let pi = 3.14159265;
+    let radius = 10;
+    let area = pi * radius * radius;
+    print "Circle area with radius 10 is:", area;
+}
+
+print "=== 1. Pratt Parser & Math Engine ===";
+compute_pi_approx();
+
+print "\n=== 2. Colorless Concurrency (Green Threads) ===";
+spawn worker(101);
+spawn worker(102);
+print "Main Fiber spawned 2 concurrent green threads";
+
+print "\n=== 3. Zero-Trust Security Capability Request ===";
+let net_cap = cap "net.socket";
+print "Requested capability token:", net_cap;
+
+print "\n=== rdx-lang execution complete ===";

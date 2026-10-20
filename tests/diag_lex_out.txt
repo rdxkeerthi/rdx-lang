@@ -1,3 +1,0 @@
-[rdx] Reading tests\diag_lex.rdx
-[rdx] Lexing...
-@

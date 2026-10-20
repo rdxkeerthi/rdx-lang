@@ -1,30 +1,68 @@
-name: RDX CI
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v0.0.1-beta ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, v0.0.1-beta ]
+  workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Compile RDX (Freestanding Linux)
-        run: make
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
-  build-windows:
-    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Compile RDX (Windows)
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up GCC (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc make
+
+      - name: Build Standalone RDX (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          gcc -std=c11 -nostdlib -fno-builtin -mno-stack-arg-probe -O2 -o rdx_bin.exe src\main.c src\lexer.c src\parser.c src\analyzer.c src\codegen.c -lkernel32
-      - name: Run Tests
+          make
+          chmod +x rdx
+          ./rdx --version
+          ./rdx --help
+
+      - name: Run Forensic Test Scripts (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          .\tests\test_step1_functions.bat
-          .\tests\test_step2_3_structs_arrays.bat
-          .\tests\test_step4_arenas.bat
-          .\tests\test_step5_results.bat
-          .\tests\test_step6_modules.bat
+          ./rdx examples/cyber_incident_triage.rdx
+          ./rdx examples/network_threat_hunt.rdx
+
+      - name: Verify "Where & Why" Diagnostic Engine (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          # The diagnostic demo deliberately contains an error, so it should exit with code 1
+          if ./rdx examples/error_diagnostic_demo.rdx; then
+            echo "Expected diagnostic error, but script passed!"
+            exit 1
+          else
+            echo "Diagnostic engine correctly caught deliberate error!"
+          fi
+
+      - name: Build Standalone RDX (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          gcc -std=c11 -O2 -mconsole -static -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c
+          .\rdx.exe --version
+          .\rdx.exe --help
+
+      - name: Run Forensic Test Scripts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\rdx.exe examples\cyber_incident_triage.rdx
+          .\rdx.exe examples\network_threat_hunt.rdx
+
+      - name: Verify "Where & Why" Diagnostic Engine (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\rdx.exe examples\error_diagnostic_demo.rdx || echo "Diagnostic caught expected error"

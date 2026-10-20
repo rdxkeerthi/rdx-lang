@@ -1,0 +1,26 @@
+// ============================================================================
+//  riscv_gpio.rdx — Bare-Metal RISC-V GPIO & Timer Driver
+// ============================================================================
+
+reg GPIO0 @ 0x10012000 : cap GPIO0_CAP {
+    volatile INPUT_VAL:  u32 @ 0x00,
+    volatile INPUT_EN:   u32 @ 0x04,
+    volatile OUTPUT_EN:  u32 @ 0x08,
+    volatile OUTPUT_VAL: u32 @ 0x0C,
+}
+
+fn gpio_set_pin_output(cap: GPIO0_CAP, pin: u32) {
+    GPIO0.OUTPUT_EN = GPIO0.OUTPUT_EN | (1 << pin);
+}
+
+fn gpio_toggle_pin(cap: GPIO0_CAP, pin: u32) {
+    GPIO0.OUTPUT_VAL = GPIO0.OUTPUT_VAL ^ (1 << pin);
+}
+
+fn delay_cycles(cycles: u32) {
+    let mut i: u32 = 0;
+    while i < cycles {
+        asm volatile ("nop");
+        i = i + 1;
+    }
+}

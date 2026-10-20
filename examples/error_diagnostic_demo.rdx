@@ -1,0 +1,11 @@
+// ============================================================================
+//  error_diagnostic_demo.rdx — Demonstrating RDX "Where & Why" Diagnostics
+// ============================================================================
+
+target_subnet = "192.168.1.0/24"
+host_ip = "192.168.1.100"
+
+// Typo in variable name: 'host_ipp' instead of 'host_ip'
+if ip.in_subnet(host_ipp, target_subnet) {
+    print "Host is inside the target subnet."
+}

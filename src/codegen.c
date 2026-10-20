@@ -343,6 +343,117 @@ static void jit_eval_expr(JitEngine *jit, int idx, JitVar *out_val) {
         out_val->ival = 0; out_val->dval = 0.0; out_val->sval[0] = '\0';
         my_strcpy(out_val->type, "num");
 
+        /* ─── impl method dispatch: obj.method(args) ───────────────────
+         * The parser stored the call name as "obj.method" in n->sval.
+         * We look up 'obj', find its shape type, build "Shape::method",
+         * and dispatch exactly like a regular user-defined function but
+         * with the receiver JitVar injected as the 'self' local.
+         * ──────────────────────────────────────────────────────────────*/
+        {
+            /* Find the dot, if any */
+            int dot_pos = -1;
+            for (int k = 0; fn[k]; k++) { if (fn[k] == '.') { dot_pos = k; break; } }
+            if (dot_pos > 0) {
+                /* split "obj" and "method" */
+                char obj_name[256]; char meth_name[128];
+                my_strncpy(obj_name, fn, dot_pos); obj_name[dot_pos] = '\0';
+                my_strcpy(meth_name, fn + dot_pos + 1);
+
+                JitVar *receiver = jit_get_var(jit, obj_name);
+                if (!receiver || receiver->inst_id < 0) {
+                    jit_err(jit, n, "method call on non-struct variable: ", obj_name);
+                    jit->had_error = 1; return;
+                }
+                JitInstance *recv_inst = &jit->instances[receiver->inst_id];
+
+                /* Build "ShapeName::method" lookup key */
+                char method_key[256];
+                my_strcpy(method_key, recv_inst->shape_name);
+                my_strcat(method_key, "::");
+                my_strcat(method_key, meth_name);
+
+                /* Find the method in the function table */
+                int mfound = 0;
+                for (int fi = 0; fi < jit->fn_count; fi++) {
+                    if (my_strcmp(jit->fns[fi].name, method_key) == 0) {
+                        mfound = 1;
+                        if (jit->frame_depth >= JIT_MAX_FRAMES) {
+                            jit_err(jit, n, "Stack overflow in method call", NULL);
+                            jit->had_error = 1; return;
+                        }
+                        /* Push fresh activation frame */
+                        JitFrame *fr = &jit->call_stack[jit->frame_depth];
+                        my_memset(fr, 0, sizeof(JitFrame));
+                        jit->frame_depth++;
+
+                        /* Bind 'self' local = the receiver JitVar */
+                        if (fr->local_count < JIT_MAX_LOCALS) {
+                            JitVar *sv = &fr->locals[fr->local_count++];
+                            my_strcpy(sv->name, "self");
+                            sv->inst_id = receiver->inst_id;
+                            sv->arr_id  = receiver->arr_id;
+                            sv->ival    = receiver->ival;
+                            sv->dval    = receiver->dval;
+                            my_strcpy(sv->sval, receiver->sval);
+                            my_strcpy(sv->type, receiver->type);
+                        }
+
+                        /* Bind remaining args to parameters (skip self param) */
+                        ASTNode *fn_node = &rdx_nodes[jit->fns[fi].node_idx];
+                        int param_start = 0;
+                        if (fn_node->child_count > 0) {
+                            ASTNode *p0 = &rdx_nodes[fn_node->children[0]];
+                            if (my_strcmp(p0->sval, "self") == 0) param_start = 1;
+                        }
+                        for (int pi = param_start; pi < fn_node->child_count && (pi - param_start) < argc; pi++) {
+                            ASTNode *param = &rdx_nodes[fn_node->children[pi]];
+                            if (fr->local_count < JIT_MAX_LOCALS) {
+                                JitVar *lv = &fr->locals[fr->local_count++];
+                                my_strncpy(lv->name, param->sval,     63);
+                                my_strncpy(lv->type, param->rdx_type, 63);
+                                lv->ival = args[pi - param_start].ival;
+                                lv->dval = args[pi - param_start].dval;
+                                my_strcpy(lv->sval, args[pi - param_start].sval);
+                            }
+                        }
+
+                        /* Execute method body */
+                        int prev_ret = jit->return_flag;
+                        jit->return_flag = 0;
+                        my_memset(&jit->ret_val, 0, sizeof(JitVar));
+                        jit_exec_stmt(jit, fn_node->body);
+
+                        /* Copy return value */
+                        out_val->ival = jit->ret_val.ival;
+                        out_val->dval = jit->ret_val.dval;
+                        my_strcpy(out_val->sval, jit->ret_val.sval);
+                        my_strcpy(out_val->type, jit->ret_val.type);
+                        if (out_val->type[0] == '\0') my_strcpy(out_val->type, "num");
+                        jit->return_flag = jit->return_flag ? 1 : prev_ret;
+
+                        /* Write back any mutated fields from 'self' local back
+                         * to the instance so field changes persist.            */
+                        JitFrame *done_fr = &jit->call_stack[jit->frame_depth - 1];
+                        for (int li = 0; li < done_fr->local_count; li++) {
+                            if (my_strcmp(done_fr->locals[li].name, "self") == 0) {
+                                /* self is a handle — field mutations went directly
+                                 * through inst_id, so no extra copy needed here. */
+                                break;
+                            }
+                        }
+
+                        jit->frame_depth--;
+                        break;
+                    }
+                }
+                if (!mfound) {
+                    jit_err(jit, n, "unknown method: ", method_key);
+                    jit->had_error = 1;
+                }
+                return;
+            }
+        }
+
         /* ─── output / newline ─── */
         if (my_strcmp(fn, "nl") == 0 || my_strcmp(fn, "newline") == 0) {
             jit_emit_and_run("\n");
@@ -1397,6 +1508,16 @@ int jit_run(JitEngine *jit, int root) {
                     my_strncpy(sh->field_types[fi], fd->rdx_type, 63);
                 }
             }
+        } else if (n->type == NODE_IMPL_BLOCK) {
+            /* Register each method (NODE_FN_DECL) from the impl block */
+            for (int mi = 0; mi < n->child_count; mi++) {
+                if (jit->fn_count < JIT_MAX_FNS) {
+                    JitFn *jf = &jit->fns[jit->fn_count++];
+                    ASTNode *mnode = &rdx_nodes[n->children[mi]];
+                    my_strncpy(jf->name, mnode->sval, 63); /* "ShapeName::method" */
+                    jf->node_idx = n->children[mi];
+                }
+            }
         } else if (n->type == NODE_LOAD) {
             /* Load and integrate external module */
             jit_run_module(jit, n->sval, 1);
@@ -1407,7 +1528,8 @@ int jit_run(JitEngine *jit, int root) {
     int executed_stmts = 0;
     for (int i = 0; i < prog->child_count; i++) {
         ASTNode *n = &rdx_nodes[prog->children[i]];
-        if (n->type == NODE_FN_DECL || n->type == NODE_EXTERN || n->type == NODE_BLUEPRINT || n->type == NODE_LOAD) continue;
+        if (n->type == NODE_FN_DECL || n->type == NODE_EXTERN || n->type == NODE_BLUEPRINT
+            || n->type == NODE_IMPL_BLOCK || n->type == NODE_LOAD) continue;
         jit_exec_stmt(jit, prog->children[i]);
         executed_stmts++;
         if (jit->had_error) break;

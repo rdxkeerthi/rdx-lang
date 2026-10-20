@@ -186,40 +186,8 @@ static void check_node(int idx) {
         break;
     }
 
-    /* ----------------------------------------------------------
-     *  NODE_DROP — explicit memory release: drop ident;
-     *
-     *  Catch:
-     *    • Dropping an already-dropped variable (Double-Free)
-     *
-     *  On success, mark the variable as OWN_DROPPED.
-     * ---------------------------------------------------------- */
-    case NODE_DROP: {
-        TrackedVariable *t = sa_find(n->sval);
-
-        if (!t) {
-            /* Variable not tracked — register it as dropped so
-             * any later use will still be caught. */
-            t = sa_register(n->sval, n->line, n->col);
-            if (!t) break;
-            t->state = OWN_DROPPED;
-            break;
-        }
-
-        if (t->state == OWN_DROPPED) {
-            rdx_diag_errorf(n->line, n->col, (int)my_strlen(t->var_name),
-                            "[RDX MEMORY ERROR]",
-                            "You are trying to free the variable '%s' that was already freed previously (double-free detected).",
-                            t->var_name);
-            SA.had_error = 1;
-        } else {
-            /* Legitimate drop — transition to DROPPED */
-            t->state = OWN_DROPPED;
-            t->line  = n->line;
-            t->col   = n->col;
-        }
-        break;
-    }
+    /* NODE_DROP was removed in Part 1 cleanup — `drop` is no longer a keyword
+     * and NODE_DROP can never be emitted by the parser. No case needed. */
 
     /* ----------------------------------------------------------
      *  NODE_ASSIGN — re-assignment to an existing variable
@@ -396,7 +364,6 @@ static void check_node(int idx) {
         if (n->left >= 0) check_node(n->left);
         break;
     }
-    case NODE_ALLOC:
     case NODE_BLUEPRINT:
     default:
         break;

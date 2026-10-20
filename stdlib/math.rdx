@@ -1,0 +1,267 @@
+// ============================================================================
+//  stdlib/math.rdx  —  RDX Standard Math Library  (v2.0)
+// ============================================================================
+//
+//  Usage:  use math;
+//
+//  All functions are pure (no side effects).
+//  The compiler may evaluate them at compile time.
+// ============================================================================
+
+// ---- Constants ----
+pub const PI:  flt = 3.14159265;
+pub const TAU: flt = 6.28318530;
+pub const E:   flt = 2.71828182;
+pub const PHI: flt = 1.61803398;  // Golden ratio
+pub const INF: flt = 9999999.0;   // Approximation (no IEEE inf in safe mode)
+pub const MAX_NUM: num = 9223372036854775807;
+pub const MIN_NUM: num = -9223372036854775808;
+
+// ---- Basic arithmetic ----
+
+/// Absolute value of a num
+pub fn abs(x: num) -> num {
+    if x < 0 { ret -x; }
+    ret x;
+}
+
+/// Absolute value of a flt
+pub fn fabs(x: flt) -> flt {
+    if x < 0.0 { ret -x; }
+    ret x;
+}
+
+/// Returns the larger of two nums
+pub fn max(a: num, b: num) -> num {
+    if a > b { ret a; }
+    ret b;
+}
+
+/// Returns the smaller of two nums
+pub fn min(a: num, b: num) -> num {
+    if a < b { ret a; }
+    ret b;
+}
+
+/// Clamp v to the range [lo, hi]
+pub fn clamp(v: num, lo: num, hi: num) -> num {
+    if v < lo { ret lo; }
+    if v > hi { ret hi; }
+    ret v;
+}
+
+/// Integer power: base^exp (exp >= 0)
+pub fn pow(base: num, exp: num) -> num {
+    if exp == 0 { ret 1; }
+    mut result: num = 1;
+    mut e: num = exp;
+    mut b: num = base;
+    loop while e > 0 {
+        if e % 2 == 1 {
+            result = result * b;
+        }
+        b = b * b;
+        e = e / 2;
+    }
+    ret result;
+}
+
+/// Integer square root (floor)
+pub fn sqrt(x: num) -> num {
+    if x < 0 { ret 0; }
+    if x == 0 { ret 0; }
+    mut guess: num = x / 2;
+    if guess == 0 { ret 1; }
+    loop while true {
+        mut next: num = (guess + x / guess) / 2;
+        if next >= guess { ret guess; }
+        guess = next;
+    }
+    ret guess;
+}
+
+/// Modulo (always positive result)
+pub fn mod(a: num, b: num) -> num {
+    mut r: num = a % b;
+    if r < 0 { r = r + b; }
+    ret r;
+}
+
+/// Sign of a number: -1, 0, or 1
+pub fn sign(x: num) -> num {
+    if x < 0 { ret -1; }
+    if x > 0 { ret 1; }
+    ret 0;
+}
+
+/// Number of decimal digits in a positive integer
+pub fn digits(n: num) -> num {
+    if n == 0 { ret 1; }
+    mut abs_n: num = abs(n);
+    mut count: num = 0;
+    loop while abs_n > 0 {
+        abs_n = abs_n / 10;
+        count = count + 1;
+    }
+    ret count;
+}
+
+// ---- Parity ----
+
+/// Returns true if n is even
+pub fn even(n: num) -> blo {
+    ret n % 2 == 0;
+}
+
+/// Returns true if n is odd
+pub fn odd(n: num) -> blo {
+    ret n % 2 != 0;
+}
+
+// ---- Float math ----
+
+/// Float absolute value
+pub fn abs_flt(x: flt) -> flt {
+    if x < 0.0 { ret -x; }
+    ret x;
+}
+
+/// Float floor
+pub fn floor(x: flt) -> num {
+    mut i: num = x as num;
+    if x < 0.0 and (x - (i as flt)) != 0.0 {
+        ret i - 1;
+    }
+    ret i;
+}
+
+/// Float ceiling
+pub fn ceil(x: flt) -> num {
+    mut i: num = x as num;
+    if x > 0.0 and (x - (i as flt)) != 0.0 {
+        ret i + 1;
+    }
+    ret i;
+}
+
+/// Float round to nearest integer
+pub fn round(x: flt) -> num {
+    ret floor(x + 0.5);
+}
+
+// ---- Number theory ----
+
+/// Greatest Common Divisor (Euclidean)
+pub fn gcd(a: num, b: num) -> num {
+    mut x: num = abs(a);
+    mut y: num = abs(b);
+    loop while y != 0 {
+        mut t: num = y;
+        y = x % y;
+        x = t;
+    }
+    ret x;
+}
+
+/// Least Common Multiple
+pub fn lcm(a: num, b: num) -> num {
+    mut g: num = gcd(a, b);
+    if g == 0 { ret 0; }
+    ret abs(a / g * b);
+}
+
+/// Returns true if n is prime
+pub fn is_prime(n: num) -> blo {
+    if n < 2 { ret false; }
+    if n == 2 { ret true; }
+    if n % 2 == 0 { ret false; }
+    mut i: num = 3;
+    loop while i * i <= n {
+        if n % i == 0 { ret false; }
+        i = i + 2;
+    }
+    ret true;
+}
+
+/// Fibonacci: F(n) — iterative for speed
+pub fn fib(n: num) -> num {
+    if n <= 0 { ret 0; }
+    if n == 1 { ret 1; }
+    mut a: num = 0;
+    mut b: num = 1;
+    mut i: num = 2;
+    loop while i <= n {
+        mut c: num = a + b;
+        a = b;
+        b = c;
+        i = i + 1;
+    }
+    ret b;
+}
+
+// ---- Pseudo-random (deterministic) ----
+
+/// Deterministic hash (useful for tests / procedural generation)
+pub fn randish(seed: num) -> num {
+    mut x: num = seed;
+    x = x ^ (x << 21);
+    x = x ^ (x >> 35);
+    x = x ^ (x << 4);
+    ret abs(x);
+}
+
+/// Pseudo-random in range [0, max)
+pub fn rand_range(seed: num, max_val: num) -> num {
+    if max_val <= 0 { ret 0; }
+    ret randish(seed) % max_val;
+}
+
+// ---- Statistics ----
+
+/// Sum of an array
+pub fn sum(arr: []num) -> num {
+    mut total: num = 0;
+    loop item in arr {
+        total = total + item;
+    }
+    ret total;
+}
+
+/// Mean of an array (as flt)
+pub fn mean(arr: []num) -> flt {
+    if arr.len == 0 { ret 0.0; }
+    mut s: num = sum(arr);
+    ret (s as flt) / (arr.len as flt);
+}
+
+/// Variance (population)
+pub fn variance(arr: []num) -> flt {
+    if arr.len == 0 { ret 0.0; }
+    mut m: flt = mean(arr);
+    mut sum_sq: flt = 0.0;
+    loop item in arr {
+        mut diff: flt = (item as flt) - m;
+        sum_sq = sum_sq + diff * diff;
+    }
+    ret sum_sq / (arr.len as flt);
+}
+
+/// Maximum in array
+pub fn array_max(arr: []num) -> num {
+    if arr.len == 0 { ret 0; }
+    mut m: num = arr[0];
+    loop item in arr {
+        if item > m { m = item; }
+    }
+    ret m;
+}
+
+/// Minimum in array
+pub fn array_min(arr: []num) -> num {
+    if arr.len == 0 { ret 0; }
+    mut m: num = arr[0];
+    loop item in arr {
+        if item < m { m = item; }
+    }
+    ret m;
+}

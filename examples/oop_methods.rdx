@@ -1,0 +1,101 @@
+// examples/oop_methods.rdx — Part 2: OOP via impl blocks
+// Demonstrates: shape fields, impl methods with self, method calls
+
+// ─── Define the shape ─────────────────────────────────────────
+shape Point {
+    num x
+    num y
+}
+
+// ─── Define methods on Point ──────────────────────────────────
+impl Point {
+    // Return the x coordinate
+    make get_x(self) -> num {
+        ret self.x
+    }
+
+    // Return the y coordinate
+    make get_y(self) -> num {
+        ret self.y
+    }
+
+    // Return Manhattan distance from origin
+    make magnitude(self) -> num {
+        num ax = abs(self.x)
+        num ay = abs(self.y)
+        ret ax + ay
+    }
+
+    // Check if the point is at the origin
+    make is_origin(self) -> blo {
+        ret self.x == 0 and self.y == 0
+    }
+
+    // Print the point as a string
+    make describe(self) -> chr {
+        chr sx = str(self.x)
+        chr sy = str(self.y)
+        chr out = concat("Point(", sx)
+        out = concat(out, ", ")
+        out = concat(out, sy)
+        out = concat(out, ")")
+        ret out
+    }
+}
+
+// ─── shape with methods using extra args ──────────────────────
+shape Counter {
+    num value
+    num step
+}
+
+impl Counter {
+    make get(self) -> num {
+        ret self.value
+    }
+
+    make tick(self) -> num {
+        // Each call returns current value + step
+        ret self.value + self.step
+    }
+}
+
+// ─── Main program ─────────────────────────────────────────────
+sys.rdx {
+    call("=== Part 2: OOP via impl blocks ===")
+
+    // Create a Point instance
+    mut p = Point { x: 3, y: 4 }
+
+    // Call methods on it
+    num px = p.get_x()
+    num py = p.get_y()
+    num mag = p.magnitude()
+    chr desc = p.describe()
+
+    call(desc)
+    call("x =", str(px))
+    call("y =", str(py))
+    call("Manhattan magnitude =", str(mag))
+
+    // is_origin check
+    if p.is_origin() {
+        call("At origin")
+    } else {
+        call("Not at origin")
+    }
+
+    // Test a zero point
+    mut origin = Point { x: 0, y: 0 }
+    if origin.is_origin() {
+        call("origin.is_origin() = true ✓")
+    }
+
+    // Counter demo
+    call("--- Counter ---")
+    mut c = Counter { value: 10, step: 3 }
+    num v1 = c.get()
+    num v2 = c.tick()
+    call("Counter.get() =", str(v1))
+    call("Counter.tick() =", str(v2))
+}

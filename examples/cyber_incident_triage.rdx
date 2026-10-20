@@ -1,0 +1,76 @@
+// ============================================================================
+//  cyber_incident_triage.rdx — Cyber Incident Response & Forensics Triage
+// ============================================================================
+//  RDX Forensics Language: Syntax-Free, Human-First Security Investigation
+// ============================================================================
+
+timeline("INCIDENT_TRIGGER", "SOC alert received for suspicious outbound beaconing")
+
+case_id = "INC-2026-8942"
+analyst = "Cyber DFIR Specialist"
+target_subnet = "10.0.4.0/24"
+
+print "=== RDX INCIDENT TRIAGE REPORT ==="
+print "Case ID: " + case_id
+print "Lead Analyst: " + analyst
+print "Target Corporate Subnet: " + target_subnet
+print ""
+
+// 1. Investigating Suspect IP Addresses
+timeline("IP_ANALYSIS", "Evaluating incoming IP connections against threat rules")
+
+suspect_ips = ["10.0.4.52", "192.168.1.1", "203.0.113.88", "198.51.100.14"]
+
+for host in suspect_ips {
+    if ip.in_subnet(host, target_subnet) {
+        alert("CRITICAL", "COMPROMISED INTERNAL HOST DETECTED", "Internal machine " + host + " is actively communicating with suspect network")
+    } else {
+        if ip.is_public(host) {
+            print "[EXTERNAL IP] " + host + " is a public Internet routable address."
+        }
+    }
+}
+
+// 2. Investigating Exposed Ports on Compromised Node
+timeline("PORT_AUDIT", "Checking open listening ports for lateral movement vectors")
+
+ports_to_check = [22, 80, 445, 3389, 23]
+for p in ports_to_check {
+    svc = net.port_name(p)
+    risk = net.port_risk(p)
+    print "Port " + p + " (" + svc + ") -> Risk Profile: " + risk
+}
+
+// 3. Analyzing Malware Artifact & Hash Matching
+timeline("PAYLOAD_HASH", "Calculating SHA-256 hash of captured beacon payload")
+
+captured_string = "mimikatz_dump_lsass_memory_payload"
+malware_hash = hash.sha256(captured_string)
+print ""
+print "Computed Payload SHA-256: " + malware_hash
+
+known_ioc = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+if hash.match(malware_hash, known_ioc) {
+    alert("THREAT", "Known Ransomware IoC Signature Confirmed", malware_hash)
+} else {
+    print "Payload signature generated and logged to timeline."
+}
+
+// 4. Log Inspection & Attack Detection
+timeline("LOG_INSPECTION", "Scanning firewall & web gateway logs for exploit signatures")
+
+raw_log = "2026-10-20 03:14:22 GET /api/v1/search?q=test' UNION SELECT username,password FROM users-- HTTP/1.1 500"
+extracted_ip = log.extract_ip(raw_log)
+detected_vector = log.detect_attack(raw_log)
+http_status = log.extract_status(raw_log)
+
+print "Log Extracted IP: " + extracted_ip
+print "HTTP Status Code: " + http_status
+print "Signature Match:  " + detected_vector
+
+if len(detected_vector) > 0 {
+    alert("WARNING", "Exploit Vector Confirmed in Traffic", detected_vector)
+}
+
+timeline("TRIAGE_COMPLETE", "Forensic evidence gathered. Containment actions recommended.")
+print "Incident triage workflow finished successfully."

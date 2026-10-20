@@ -1,0 +1,178 @@
+// ============================================================================
+//  stdlib/io.rdx  —  RDX Standard I/O Library  (v2.0)
+// ============================================================================
+//
+//  Usage:  use io;
+//
+//  All file operations require the CAP_FILE_READ / CAP_FILE_WRITE capability.
+//  Console I/O requires CAP_STDIO_READ / CAP_STDIO_WRITE.
+// ============================================================================
+
+// ---- Console Output ----
+
+/// Print a string with no newline
+pub fn print(s: chr) {
+    call(s);
+}
+
+/// Print a string followed by a newline
+pub fn println(s: chr) {
+    call(s);
+    nl();
+}
+
+/// Print a number
+pub fn print_num(n: num) {
+    call(n);
+}
+
+/// Print a float
+pub fn print_flt(f: flt) {
+    call(f);
+}
+
+/// Print a bool
+pub fn print_bool(b: blo) {
+    if b { call("true"); }
+    else  { call("false"); }
+}
+
+/// Print multiple values on separate lines
+pub fn print_each(arr: []chr) {
+    loop item in arr {
+        call(item);
+    }
+}
+
+// ---- Console Input ----
+
+/// Read a line of text from stdin (with optional prompt)
+pub fn read(prompt: chr) -> chr {
+    ret get(prompt);
+}
+
+/// Read a number from stdin
+pub fn read_num(prompt: chr) -> num {
+    mut s: chr = get(prompt);
+    ret num(s);
+}
+
+/// Read a float from stdin
+pub fn read_flt(prompt: chr) -> flt {
+    mut s: chr = get(prompt);
+    ret flt(s);
+}
+
+/// Read a boolean from stdin ("true"/"false"/"yes"/"no"/"1"/"0")
+pub fn read_bool(prompt: chr) -> blo {
+    mut s: chr = lower(get(prompt));
+    if s == "true" or s == "yes" or s == "1" or s == "y" {
+        ret true;
+    }
+    ret false;
+}
+
+// ---- Formatting ----
+
+/// Format a number as a padded string (e.g., for tables)
+pub fn fmt_num(n: num, width: num) -> chr {
+    mut s: chr = str(n);
+    loop while len(s) < width {
+        s = " " + s;
+    }
+    ret s;
+}
+
+/// Format a float with precision decimal places
+pub fn fmt_flt(f: flt, precision: num) -> chr {
+    mut ipart: num = f as num;
+    mut result: chr = str(ipart) + ".";
+    mut frac: flt = f - (ipart as flt);
+    if frac < 0.0 { frac = -frac; }
+    mut i: num = 0;
+    loop while i < precision {
+        frac = frac * 10.0;
+        mut digit: num = frac as num;
+        result = result + str(digit);
+        frac = frac - (digit as flt);
+        i = i + 1;
+    }
+    ret result;
+}
+
+// ---- File I/O ----
+//  File operations use the capability system.
+//  Pass a cap token to unlock file access.
+
+/// Check if a file exists
+pub fn file_exists(path: chr) -> blo {
+    safe {
+        mut content: chr = file_read(path);
+        ret true;
+    } fail err {
+        ret false;
+    }
+}
+
+/// Get the size of a file in bytes (-1 on error)
+pub fn file_size(path: chr) -> num {
+    safe {
+        mut content: chr = file_read(path);
+        ret len(content);
+    } fail err {
+        ret -1;
+    }
+}
+
+// ---- Structured Output ----
+
+/// Print a horizontal rule of width w
+pub fn hr(w: num) {
+    mut i: num = 0;
+    mut line: chr = "";
+    loop while i < w {
+        line = line + "-";
+        i = i + 1;
+    }
+    call(line);
+}
+
+/// Print a table row from an array of strings with fixed column width
+pub fn table_row(cols: []chr, col_width: num) {
+    mut row: chr = "| ";
+    loop col in cols {
+        mut padded: chr = col;
+        loop while len(padded) < col_width {
+            padded = padded + " ";
+        }
+        row = row + padded + " | ";
+    }
+    call(row);
+}
+
+/// Print a progress bar at given percentage (0-100)
+pub fn progress_bar(pct: num, width: num) {
+    mut filled: num = pct * width / 100;
+    mut bar: chr = "[";
+    mut i: num = 0;
+    loop while i < width {
+        if i < filled { bar = bar + "="; }
+        elif i == filled { bar = bar + ">"; }
+        else { bar = bar + " "; }
+        i = i + 1;
+    }
+    bar = bar + "] " + str(pct) + "%";
+    call(bar);
+}
+
+/// Print a key-value pair
+pub fn kv(key: chr, val: chr) {
+    call("" [key, ": ", val]);
+}
+
+/// Print a section header
+pub fn header(title: chr) {
+    call("");
+    call("== " + title + " ==");
+    call("");
+}
