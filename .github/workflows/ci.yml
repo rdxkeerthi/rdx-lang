@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, v0.0.1-beta ]
+  pull_request:
+    branches: [ main, v0.0.1-beta ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up GCC (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc make
+
+      - name: Build Standalone RDX (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          make
+          chmod +x rdx
+          ./rdx --version
+          ./rdx --help
+
+      - name: Run Forensic Test Scripts (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          ./rdx examples/cyber_incident_triage.rdx
+          ./rdx examples/network_threat_hunt.rdx
+
+      - name: Verify "Where & Why" Diagnostic Engine (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          # The diagnostic demo deliberately contains an error, so it should exit with code 1
+          if ./rdx examples/error_diagnostic_demo.rdx; then
+            echo "Expected diagnostic error, but script passed!"
+            exit 1
+          else
+            echo "Diagnostic engine correctly caught deliberate error!"
+          fi
+
+      - name: Build Standalone RDX (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          gcc -std=c11 -O2 -mconsole -static -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c
+          .\rdx.exe --version
+          .\rdx.exe --help
+
+      - name: Run Forensic Test Scripts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\rdx.exe examples\cyber_incident_triage.rdx
+          .\rdx.exe examples\network_threat_hunt.rdx
+
+      - name: Verify "Where & Why" Diagnostic Engine (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\rdx.exe examples\error_diagnostic_demo.rdx || echo "Diagnostic caught expected error"

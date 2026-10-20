@@ -1,0 +1,23 @@
+// RDX Result types demo
+fix ok_val = ok(42)
+fix err_val = err("Division by zero")
+
+call("Is OK: " [is_ok(ok_val)])
+
+call("Unwrapped: " [unwrap(ok_val)])
+
+call("Is Err: " [is_err(err_val)])
+
+call("Unwrap or default: " [unwrap_or(err_val, -1)])
+
+// Test safe/fail propagation
+fix final = 0
+safe {
+    fix crash = unwrap(err_val)
+    final = 100
+} fail e {
+    call("Caught error successfully.")
+    final = 999
+}
+
+call("Final: " [final])

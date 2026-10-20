@@ -1,0 +1,19 @@
+// multi_error_test.rdx — verify panic-mode recovery (Part 3)
+// All tokens must be lexically valid; errors are parser-level.
+// Expected output: multiple [RDX PARSE ERROR] diagnostics in one run.
+
+sys.rdx {
+    // Error 1: 'if' with no condition expression — just a bare '{'
+    if {
+        call("body1")
+    }
+
+    // Error 2: 'mut' with no type or ident following
+    mut
+
+    // Error 3: call with missing closing paren
+    call("oops"
+
+    // This should still be reached / attempted by the parser:
+    call("after errors")
+}

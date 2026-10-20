@@ -1,0 +1,21 @@
+[rdx] Reading tests\diag_semantic.rdx
+[rdx] Lexing...
+[rdx] 22 tokens
+[rdx] Parsing...
+[rdx] 9 AST nodes
+[rdx] AST Dump:
+PROGRAM
+  FN_DECL "main"
+    BLOCK
+      VAR_DECL "x" type=var
+        LIT_NUM ival=10
+      VAR_DECL "y" type=var
+        IDENT "x"
+      FN_CALL "print"
+        IDENT "x"
+[rdx] Semantic Analysis...
+[RDX MEMORY ERROR] line 4, col 11: You are trying to use the variable 'x' whose ownership was already moved or transferred earlier.
+        print(x);
+              ^
+[rdx] Semantic Analysis completed with code 1
+[rdx] Memory safety errors detected — aborting

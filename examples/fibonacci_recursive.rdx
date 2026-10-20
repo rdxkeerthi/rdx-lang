@@ -1,0 +1,53 @@
+// ── fibonacci_recursive.rdx ────────────────────────────────────────
+// Step 1 proof: user-defined recursive functions work under the JIT.
+// Tests: make, parameters, ret, recursion, mutual parameter scoping.
+
+make fib(num n) -> num {
+    if n <= 1 {
+        ret n
+    }
+    ret fib(n - 1) + fib(n - 2)
+}
+
+make factorial(num n) -> num {
+    if n <= 1 {
+        ret 1
+    }
+    ret n * factorial(n - 1)
+}
+
+make add(num a, num b) -> num {
+    ret a + b
+}
+
+make max2(num a, num b) -> num {
+    if a > b {
+        ret a
+    }
+    ret b
+}
+
+sys.rdx {
+    call("=== Recursive Fibonacci ===")
+    call("fib(0)  = " [fib(0)])
+    call("fib(1)  = " [fib(1)])
+    call("fib(5)  = " [fib(5)])
+    call("fib(10) = " [fib(10)])
+    call("fib(15) = " [fib(15)])
+
+    call("")
+    call("=== Factorial ===")
+    call("fact(1)  = " [factorial(1)])
+    call("fact(5)  = " [factorial(5)])
+    call("fact(10) = " [factorial(10)])
+
+    call("")
+    call("=== Parameter Scoping ===")
+    num x = 100
+    num y = 200
+    call("add(3, 4) = " [add(3, 4)])
+    call("x = " [x])
+    call("y = " [y])
+    call("x and y still 100 and 200 (scoping OK)")
+    call("max2(42, 17) = " [max2(42, 17)])
+}

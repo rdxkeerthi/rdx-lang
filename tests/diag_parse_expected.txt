@@ -1,0 +1,23 @@
+[rdx] Reading tests\diag_parse.rdx
+[rdx] Lexing...
+[rdx] 11 tokens
+[rdx] Parsing...
+[RDX PARSE ERROR] line 2, col 10: expected ','. We instead found: (
+        print("hello");
+             ^
+[RDX PARSE ERROR] line 2, col 11: expected parameter name. We instead found: hello
+        print("hello");
+              ^~~~~
+[RDX PARSE ERROR] line 2, col 11: expected ','. We instead found: hello
+        print("hello");
+              ^~~~~
+[RDX PARSE ERROR] line 2, col 18: expected parameter name. We instead found: )
+        print("hello");
+                     ^
+[RDX PARSE ERROR] line 2, col 19: expected '{'. We instead found: ;
+        print("hello");
+                      ^
+PARSE ERROR line 2, col 19: unexpected token ';'
+        print("hello");
+                      ^
+[rdx] Parse errors — aborting

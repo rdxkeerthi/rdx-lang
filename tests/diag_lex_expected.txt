@@ -1,0 +1,6 @@
+[rdx] Reading tests\diag_lex.rdx
+[rdx] Lexing...
+LEX ERROR line 1, col 1: unexpected character: '@'
+    @
+    ^
+[rdx] Lex errors — aborting

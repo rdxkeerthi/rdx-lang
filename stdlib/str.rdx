@@ -1,0 +1,316 @@
+// ============================================================================
+//  stdlib/str.rdx  —  RDX Standard String Library  (v2.0)
+// ============================================================================
+//
+//  Usage:  use str;
+//
+//  Provides comprehensive UTF-8 safe string operations.
+// ============================================================================
+
+// ---- Length ----
+
+/// Length of string in bytes
+pub fn len(s: chr) -> num {
+    mut count: num = 0;
+    loop c in s {
+        count = count + 1;
+    }
+    ret count;
+}
+
+// ---- Case conversion ----
+
+/// Uppercase a single ASCII character
+fn upper_char(c: chr) -> chr {
+    if c >= "a" and c <= "z" {
+        ret chr(num(c) - 32);
+    }
+    ret c;
+}
+
+/// Lowercase a single ASCII character
+fn lower_char(c: chr) -> chr {
+    if c >= "A" and c <= "Z" {
+        ret chr(num(c) + 32);
+    }
+    ret c;
+}
+
+/// Uppercase all ASCII characters in string
+pub fn upper(s: chr) -> chr {
+    mut result: chr = "";
+    loop c in s {
+        result = result + upper_char(c);
+    }
+    ret result;
+}
+
+/// Lowercase all ASCII characters in string
+pub fn lower(s: chr) -> chr {
+    mut result: chr = "";
+    loop c in s {
+        result = result + lower_char(c);
+    }
+    ret result;
+}
+
+// ---- Concatenation & Repetition ----
+
+/// Concatenate two strings
+pub fn concat(a: chr, b: chr) -> chr {
+    ret a + b;
+}
+
+/// Repeat a string n times
+pub fn repeat(s: chr, n: num) -> chr {
+    mut result: chr = "";
+    mut i: num = 0;
+    loop while i < n {
+        result = result + s;
+        i = i + 1;
+    }
+    ret result;
+}
+
+// ---- Searching ----
+
+/// Check if haystack starts with prefix
+pub fn starts_with(haystack: chr, prefix: chr) -> blo {
+    mut hi: num = 0;
+    mut pi: num = 0;
+    loop c in prefix {
+        if hi >= len(haystack) { ret false; }
+        if c != chr_at(haystack, hi) { ret false; }
+        hi = hi + 1;
+        pi = pi + 1;
+    }
+    ret true;
+}
+
+/// Check if haystack ends with suffix
+pub fn ends_with(haystack: chr, suffix: chr) -> blo {
+    mut hlen: num = len(haystack);
+    mut slen: num = len(suffix);
+    if slen > hlen { ret false; }
+    mut start: num = hlen - slen;
+    mut si: num = 0;
+    loop c in suffix {
+        if c != chr_at(haystack, start + si) { ret false; }
+        si = si + 1;
+    }
+    ret true;
+}
+
+/// Check if haystack contains needle
+pub fn contains(haystack: chr, needle: chr) -> blo {
+    mut nlen: num = len(needle);
+    mut hlen: num = len(haystack);
+    if nlen > hlen { ret false; }
+    mut i: num = 0;
+    loop while i <= hlen - nlen {
+        mut found: blo = true;
+        mut j: num = 0;
+        loop while j < nlen and found {
+            if chr_at(haystack, i + j) != chr_at(needle, j) {
+                found = false;
+            }
+            j = j + 1;
+        }
+        if found { ret true; }
+        i = i + 1;
+    }
+    ret false;
+}
+
+/// Find first occurrence of needle in haystack (returns -1 if not found)
+pub fn find(haystack: chr, needle: chr) -> num {
+    mut nlen: num = len(needle);
+    mut hlen: num = len(haystack);
+    if nlen > hlen { ret -1; }
+    mut i: num = 0;
+    loop while i <= hlen - nlen {
+        mut found: blo = true;
+        mut j: num = 0;
+        loop while j < nlen and found {
+            if chr_at(haystack, i + j) != chr_at(needle, j) {
+                found = false;
+            }
+            j = j + 1;
+        }
+        if found { ret i; }
+        i = i + 1;
+    }
+    ret -1;
+}
+
+// ---- Slicing ----
+
+/// Substring: s[start..end)
+pub fn slice(s: chr, start: num, end_idx: num) -> chr {
+    mut result: chr = "";
+    mut i: num = 0;
+    loop c in s {
+        if i >= start and i < end_idx {
+            result = result + c;
+        }
+        i = i + 1;
+    }
+    ret result;
+}
+
+/// Take first n characters
+pub fn take(s: chr, n: num) -> chr {
+    ret slice(s, 0, n);
+}
+
+/// Drop first n characters
+pub fn drop(s: chr, n: num) -> chr {
+    ret slice(s, n, len(s));
+}
+
+// ---- Trimming ----
+
+fn is_whitespace(c: chr) -> blo {
+    ret c == " " or c == "\t" or c == "\n" or c == "\r";
+}
+
+/// Trim leading whitespace
+pub fn trim_start(s: chr) -> chr {
+    mut i: num = 0;
+    mut slen: num = len(s);
+    loop while i < slen and is_whitespace(chr_at(s, i)) {
+        i = i + 1;
+    }
+    ret slice(s, i, slen);
+}
+
+/// Trim trailing whitespace
+pub fn trim_end(s: chr) -> chr {
+    mut slen: num = len(s);
+    mut i: num = slen - 1;
+    loop while i >= 0 and is_whitespace(chr_at(s, i)) {
+        i = i - 1;
+    }
+    ret slice(s, 0, i + 1);
+}
+
+/// Trim both ends
+pub fn trim(s: chr) -> chr {
+    ret trim_end(trim_start(s));
+}
+
+// ---- Replacement ----
+
+/// Replace first occurrence of old with new_s
+pub fn replace_first(s: chr, old_s: chr, new_s: chr) -> chr {
+    mut idx: num = find(s, old_s);
+    if idx == -1 { ret s; }
+    mut oldlen: num = len(old_s);
+    ret slice(s, 0, idx) + new_s + slice(s, idx + oldlen, len(s));
+}
+
+/// Replace all occurrences of old with new_s
+pub fn replace(s: chr, old_s: chr, new_s: chr) -> chr {
+    mut result: chr = s;
+    mut idx: num = find(result, old_s);
+    mut oldlen: num = len(old_s);
+    loop while idx != -1 {
+        result = slice(result, 0, idx) + new_s + slice(result, idx + oldlen, len(result));
+        idx = find(slice(result, idx + len(new_s), len(result)), old_s);
+        if idx != -1 {
+            idx = idx + len(new_s);
+        }
+    }
+    ret result;
+}
+
+// ---- Type Conversion ----
+
+/// Convert num to chr (decimal representation)
+pub fn num_to_str(n: num) -> chr {
+    if n == 0 { ret "0"; }
+    mut negative: blo = n < 0;
+    mut abs_n: num = n;
+    if negative { abs_n = -abs_n; }
+    mut digits_arr: []chr = [];
+    loop while abs_n > 0 {
+        mut digit: num = abs_n % 10;
+        if digit == 0 { digits_arr = digits_arr + ["0"]; }
+        elif digit == 1 { digits_arr = digits_arr + ["1"]; }
+        elif digit == 2 { digits_arr = digits_arr + ["2"]; }
+        elif digit == 3 { digits_arr = digits_arr + ["3"]; }
+        elif digit == 4 { digits_arr = digits_arr + ["4"]; }
+        elif digit == 5 { digits_arr = digits_arr + ["5"]; }
+        elif digit == 6 { digits_arr = digits_arr + ["6"]; }
+        elif digit == 7 { digits_arr = digits_arr + ["7"]; }
+        elif digit == 8 { digits_arr = digits_arr + ["8"]; }
+        elif digit == 9 { digits_arr = digits_arr + ["9"]; }
+        abs_n = abs_n / 10;
+    }
+    mut result: chr = "";
+    if negative { result = "-"; }
+    mut i: num = digits_arr.len - 1;
+    loop while i >= 0 {
+        result = result + digits_arr[i];
+        i = i - 1;
+    }
+    ret result;
+}
+
+/// Parse a decimal string to num (returns 0 on error)
+pub fn str_to_num(s: chr) -> num {
+    mut result: num = 0;
+    mut negative: blo = false;
+    mut i: num = 0;
+    mut slen: num = len(s);
+    if slen == 0 { ret 0; }
+    if chr_at(s, 0) == "-" {
+        negative = true;
+        i = 1;
+    }
+    loop while i < slen {
+        mut c: chr = chr_at(s, i);
+        mut digit: num = 0;
+        if c == "0" { digit = 0; }
+        elif c == "1" { digit = 1; }
+        elif c == "2" { digit = 2; }
+        elif c == "3" { digit = 3; }
+        elif c == "4" { digit = 4; }
+        elif c == "5" { digit = 5; }
+        elif c == "6" { digit = 6; }
+        elif c == "7" { digit = 7; }
+        elif c == "8" { digit = 8; }
+        elif c == "9" { digit = 9; }
+        else { ret 0; }
+        result = result * 10 + digit;
+        i = i + 1;
+    }
+    if negative { ret -result; }
+    ret result;
+}
+
+// ---- Padding ----
+
+/// Pad string on the left to width w with char pad_char
+pub fn pad_left(s: chr, w: num, pad_char: chr) -> chr {
+    mut slen: num = len(s);
+    if slen >= w { ret s; }
+    ret repeat(pad_char, w - slen) + s;
+}
+
+/// Pad string on the right to width w with char pad_char
+pub fn pad_right(s: chr, w: num, pad_char: chr) -> chr {
+    mut slen: num = len(s);
+    if slen >= w { ret s; }
+    ret s + repeat(pad_char, w - slen);
+}
+
+/// Center a string within width w
+pub fn center(s: chr, w: num) -> chr {
+    mut slen: num = len(s);
+    if slen >= w { ret s; }
+    mut total_pad: num = w - slen;
+    mut left_pad: num = total_pad / 2;
+    mut right_pad: num = total_pad - left_pad;
+    ret repeat(" ", left_pad) + s + repeat(" ", right_pad);
+}

@@ -1,0 +1,60 @@
+// ============================================================================
+//  network_threat_hunt.rdx — Network Threat Hunting & Port Attack Surface
+// ============================================================================
+
+timeline("NETWORK_AUDIT_START", "Scanning internal segments for anomalous services")
+
+print "=========================================="
+print "       RDX NETWORK THREAT HUNTER          "
+print "=========================================="
+print ""
+
+// Subnet Verification
+corp_segment = "172.16.0.0/12"
+dmz_segment  = "192.168.10.0/24"
+
+nodes = [
+    "172.16.5.10",
+    "192.168.10.25",
+    "10.0.0.1",
+    "8.8.8.8",
+    "198.51.100.42"
+]
+
+for node in nodes {
+    if ip.in_subnet(node, corp_segment) {
+        print "[INTERNAL CORP] " + node + " is in Corporate Segment"
+    } else {
+        if ip.in_subnet(node, dmz_segment) {
+            print "[DMZ HOST]      " + node + " is in DMZ Segment"
+        } else {
+            if ip.is_public(node) {
+                print "[EXTERNAL WAN]  " + node + " is an external internet host"
+            }
+        }
+    }
+}
+
+print ""
+timeline("PORT_SURFACE", "Scanning active listening ports against known exploits")
+
+// Port Exposure Risk Audit
+critical_ports = [21, 22, 23, 80, 443, 445, 1433, 3389]
+for p in critical_ports {
+    svc = net.port_name(p)
+    risk = net.port_risk(p)
+    if risk != "LOW (Web Service)" && risk != "LOW (Encrypted Web Traffic)" {
+        print "  (!) WARNING: Port " + p + " (" + svc + ") exposed -> " + risk
+    }
+}
+
+// Log inspection for Web Application Attack
+access_log = "2026-10-20 04:15:00 198.51.100.42 GET /login.php?user=admin' OR '1'='1 HTTP/1.1 200"
+attack_type = log.detect_attack(access_log)
+attacker_ip = log.extract_ip(access_log)
+
+if len(attack_type) > 0 {
+    alert("CRITICAL", "Live Injection Attack Detected from Host", attacker_ip + " => " + attack_type)
+}
+
+timeline("NETWORK_AUDIT_COMPLETE", "Audit finished. 1 critical attack vector flagged.")

@@ -1,0 +1,42 @@
+// ============================================================================
+//  stm32_uart.rdx — Bare-Metal STM32 UART Driver with Hardware Capabilities
+// ============================================================================
+
+reg USART1 @ 0x40013800 : cap USART1_CAP {
+    volatile CR1: u32 @ 0x00,
+    volatile CR2: u32 @ 0x04,
+    volatile BRR: u32 @ 0x08,
+    volatile SR:  u32 @ 0x0C,
+    volatile DR:  u16 @ 0x10,
+}
+
+packed struct UartConfig {
+    baud_rate: u32,
+    data_bits: u8,
+    stop_bits: u8,
+    parity: u8,
+}
+
+fn uart_init(cap: USART1_CAP) {
+    // Comptime calculation of baud rate divisor (72 MHz / (16 * 115200))
+    let brr_val: u32 = comptime { (72000000 / (16 * 115200)) };
+    USART1.BRR = brr_val;
+
+    // Enable UART, TX, and RX (bits 13, 3, 2 in CR1)
+    USART1.CR1 = 0x200C;
+}
+
+fn uart_write_byte(cap: USART1_CAP, byte: u8) {
+    // Wait for TXE (Transmit Data Register Empty) bit 7 in SR
+    while (USART1.SR & 0x80) == 0 {
+        asm volatile ("nop");
+    }
+    USART1.DR = byte;
+}
+
+isr(37) fn USART1_IRQHandler() {
+    // Context saved automatically
+    if (USART1.SR & 0x20) != 0 {
+        let received: u16 = USART1.DR;
+    }
+}

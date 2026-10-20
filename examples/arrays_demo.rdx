@@ -1,0 +1,18 @@
+// arrays_demo.rdx - Step 3: Arrays proof
+
+fix primes = [2, 3, 5, 7, 11, 13]
+call("First prime: " [primes[0]])
+call("Fifth prime: " [primes[4]])
+
+fix scores = [10, 20, 30, 40, 50]
+scores[2] = 999
+call("Updated scores[2]: " [scores[2]])
+
+call("All primes:")
+loop 0..6 as i {
+    call("  " [primes[i]])
+}
+
+fix words = ["hello", "world", "rdx", "rocks"]
+call("word0: " [words[0]])
+call("word2: " [words[2]])

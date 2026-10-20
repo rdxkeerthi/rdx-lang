@@ -1,0 +1,41 @@
+call("=== RDX Arena Allocator Demo ===")
+nl()
+
+call("1. Creating an arena of size 1024 bytes...")
+nl()
+my_arena = arena.create(1024)
+
+call("Arena ID: " [str(my_arena)])
+nl()
+call("Capacity: " [str(arena.cap(my_arena))])
+nl()
+call("Used: " [str(arena.used(my_arena))])
+nl()
+
+call("2. Allocating 128 bytes from arena...")
+nl()
+ptr1 = arena.alloc(my_arena, 128)
+
+call("Used: " [str(arena.used(my_arena))])
+nl()
+
+call("3. Allocating 256 bytes from arena...")
+nl()
+ptr2 = arena.alloc(my_arena, 256)
+
+call("Used: " [str(arena.used(my_arena))])
+nl()
+
+call("4. Resetting arena...")
+nl()
+arena.reset(my_arena)
+
+call("Used after reset: " [str(arena.used(my_arena))])
+nl()
+
+call("5. Destroying arena...")
+nl()
+arena.destroy(my_arena)
+
+call("Done.")
+nl()

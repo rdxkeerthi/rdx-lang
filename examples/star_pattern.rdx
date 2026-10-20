@@ -1,0 +1,168 @@
+// star_pattern.rdx -- Star patterns driven by counter loops
+// Every pattern uses: mut row = 1  loop row <= N { ... row = row + 1 }
+
+sys.rdx {
+    call("╔══════════════════════════════════╗")
+    call("║   RDX Star Pattern Gallery       ║")
+    call("╚══════════════════════════════════╝")
+
+    // ── Pattern 1: Right Triangle ────────────────────────────
+    // row goes 1 → 5, print row stars each iteration
+    call("")
+    call("[ 1 ] Right Triangle  (row = 1..5)")
+    mut num row = 1
+    loop row <= 5 {
+        if row == 1 { call("*") }
+        elif row == 2 { call("**") }
+        elif row == 3 { call("***") }
+        elif row == 4 { call("****") }
+        elif row == 5 { call("*****") }
+        row = row + 1
+    }
+
+    // ── Pattern 2: Inverted Triangle ─────────────────────────
+    // row goes 5 → 1 (decreasing counter)
+    call("")
+    call("[ 2 ] Inverted Triangle  (row = 5 down to 1)")
+    mut num r = 5
+    loop r >= 1 {
+        if r == 5 { call("*****") }
+        elif r == 4 { call("****") }
+        elif r == 3 { call("***") }
+        elif r == 2 { call("**") }
+        elif r == 1 { call("*") }
+        r = r - 1
+    }
+
+    // ── Pattern 3: Pyramid ───────────────────────────────────
+    // row counter drives both spaces and stars
+    // spaces = 5 - row,  stars = 2*row - 1
+    call("")
+    call("[ 3 ] Pyramid  (stars = 2*row-1, spaces = 5-row)")
+    mut num pr = 1
+    loop pr <= 5 {
+        if pr == 1 { call("    *") }
+        elif pr == 2 { call("   ***") }
+        elif pr == 3 { call("  *****") }
+        elif pr == 4 { call(" *******") }
+        elif pr == 5 { call("*********") }
+        pr = pr + 1
+    }
+
+    // ── Pattern 4: Diamond ───────────────────────────────────
+    // top half: row 1..5 (pyramid)
+    // bottom half: row 4..1 (inverted, skips middle)
+    call("")
+    call("[ 4 ] Diamond  (top: 1..5, bottom: 4..1)")
+    mut num dt = 1
+    loop dt <= 5 {
+        if dt == 1 { call("    *") }
+        elif dt == 2 { call("   ***") }
+        elif dt == 3 { call("  *****") }
+        elif dt == 4 { call(" *******") }
+        elif dt == 5 { call("*********") }
+        dt = dt + 1
+    }
+    mut num db = 4
+    loop db >= 1 {
+        if db == 4 { call(" *******") }
+        elif db == 3 { call("  *****") }
+        elif db == 2 { call("   ***") }
+        elif db == 1 { call("    *") }
+        db = db - 1
+    }
+
+    // ── Pattern 5: Hollow Square ─────────────────────────────
+    // row 1 = top border, row 5 = bottom border, rows 2-4 = sides
+    call("")
+    call("[ 5 ] Hollow Square 5x5  (row = 1..5)")
+    mut num sq = 1
+    loop sq <= 5 {
+        if sq == 1  { call("*****") }
+        elif sq == 5 { call("*****") }
+        else         { call("*   *") }
+        sq = sq + 1
+    }
+
+    // ── Pattern 6: Hourglass ─────────────────────────────────
+    // top: row goes 5 down to 1 (shrinking)
+    // bottom: row goes 2 up to 5 (growing)
+    call("")
+    call("[ 6 ] Hourglass  (top: 5→1, bottom: 2→5)")
+    mut num ht = 5
+    loop ht >= 1 {
+        if ht == 5 { call("*********") }
+        elif ht == 4 { call(" *******") }
+        elif ht == 3 { call("  *****") }
+        elif ht == 2 { call("   ***") }
+        elif ht == 1 { call("    *") }
+        ht = ht - 1
+    }
+    mut num hb = 2
+    loop hb <= 5 {
+        if hb == 2 { call("   ***") }
+        elif hb == 3 { call("  *****") }
+        elif hb == 4 { call(" *******") }
+        elif hb == 5 { call("*********") }
+        hb = hb + 1
+    }
+
+    // ── Pattern 7: Number Staircase ──────────────────────────
+    // row counter controls which number row to print
+    call("")
+    call("[ 7 ] Number Staircase  (row = 1..5, row = row + 1)")
+    mut num nr = 1
+    loop nr <= 5 {
+        if nr == 1 { call("1") }
+        elif nr == 2 { call("1  2") }
+        elif nr == 3 { call("1  2  3") }
+        elif nr == 4 { call("1  2  3  4") }
+        elif nr == 5 { call("1  2  3  4  5") }
+        nr = nr + 1
+    }
+
+    // ── Pattern 8: Multiplication Table rows ─────────────────
+    // row i, col 1..5: shows i * 1 to i * 5
+    // (separate make fn would require string building — shown as rows)
+    call("")
+    call("[ 8 ] Times Table — row × 1..5  (i = 1..5, i = i + 1)")
+    mut num mi = 1
+    loop mi <= 5 {
+        num c1 = mi * 1
+        num c2 = mi * 2
+        num c3 = mi * 3
+        num c4 = mi * 4
+        num c5 = mi * 5
+        call("row " [mi, " x 1..5 = ", c1, "  ", c2, "  ", c3, "  ", c4, "  ", c5])
+        mi = mi + 1
+    }
+
+    // ── Pattern 9: Fibonacci sequence with counter ────────────
+    call("")
+    call("[ 9 ] Fibonacci  (a=0, b=1, i=0, loop i<8, i=i+1)")
+    mut num fa = 0
+    mut num fb = 1
+    mut num fi = 0
+    loop fi < 8 {
+        call("  fib[" [fi, "] = ", fa])
+        mut num tmp = fa + fb
+        fa = fb
+        fb = tmp
+        fi = fi + 1
+    }
+
+    // ── Pattern 10: Countdown + sum accumulator ───────────────
+    call("")
+    call("[ 10 ] Countdown  (n=10, loop n>0, n=n-1)")
+    mut num n = 10
+    mut num acc = 0
+    loop n > 0 {
+        acc = acc + n
+        call("  n=" [n, "  running sum=", acc])
+        n = n - 1
+    }
+    call("  Total (10+9+...+1) = " [acc])
+
+    call("")
+    call("All 10 patterns complete!  Built with RDX")
+}

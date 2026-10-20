@@ -1,0 +1,1339 @@
+// ── lexer.rdx ─────────────────────────────────────────────────────
+// Step B: Stage 2 Self-Hosting Prototype (Lexer)
+// Matches C lexer functionality identically.
+
+make is_digit(chr c) -> num {
+    if c == "0" { ret 1 }
+    if c == "1" { ret 1 }
+    if c == "2" { ret 1 }
+    if c == "3" { ret 1 }
+    if c == "4" { ret 1 }
+    if c == "5" { ret 1 }
+    if c == "6" { ret 1 }
+    if c == "7" { ret 1 }
+    if c == "8" { ret 1 }
+    if c == "9" { ret 1 }
+    ret 0
+}
+
+make is_space(chr c) -> num {
+    if c == " " { ret 1 }
+    if c == "\n" { ret 1 }
+    if c == "\r" { ret 1 }
+    if c == "\t" { ret 1 }
+    ret 0
+}
+
+make is_alpha(chr c) -> num {
+    if c == "a" { ret 1 }
+    if c == "b" { ret 1 }
+    if c == "c" { ret 1 }
+    if c == "d" { ret 1 }
+    if c == "e" { ret 1 }
+    if c == "f" { ret 1 }
+    if c == "g" { ret 1 }
+    if c == "h" { ret 1 }
+    if c == "i" { ret 1 }
+    if c == "j" { ret 1 }
+    if c == "k" { ret 1 }
+    if c == "l" { ret 1 }
+    if c == "m" { ret 1 }
+    if c == "n" { ret 1 }
+    if c == "o" { ret 1 }
+    if c == "p" { ret 1 }
+    if c == "q" { ret 1 }
+    if c == "r" { ret 1 }
+    if c == "s" { ret 1 }
+    if c == "t" { ret 1 }
+    if c == "u" { ret 1 }
+    if c == "v" { ret 1 }
+    if c == "w" { ret 1 }
+    if c == "x" { ret 1 }
+    if c == "y" { ret 1 }
+    if c == "z" { ret 1 }
+    if c == "A" { ret 1 }
+    if c == "B" { ret 1 }
+    if c == "C" { ret 1 }
+    if c == "D" { ret 1 }
+    if c == "E" { ret 1 }
+    if c == "F" { ret 1 }
+    if c == "G" { ret 1 }
+    if c == "H" { ret 1 }
+    if c == "I" { ret 1 }
+    if c == "J" { ret 1 }
+    if c == "K" { ret 1 }
+    if c == "L" { ret 1 }
+    if c == "M" { ret 1 }
+    if c == "N" { ret 1 }
+    if c == "O" { ret 1 }
+    if c == "P" { ret 1 }
+    if c == "Q" { ret 1 }
+    if c == "R" { ret 1 }
+    if c == "S" { ret 1 }
+    if c == "T" { ret 1 }
+    if c == "U" { ret 1 }
+    if c == "V" { ret 1 }
+    if c == "W" { ret 1 }
+    if c == "X" { ret 1 }
+    if c == "Y" { ret 1 }
+    if c == "Z" { ret 1 }
+    if c == "_" { ret 1 }
+    ret 0
+}
+
+make is_alnum(chr c) -> num {
+    if is_alpha(c) == 1 { ret 1 }
+    if is_digit(c) == 1 { ret 1 }
+    ret 0
+}
+
+make tokenize(chr src) {
+    num length = len(src)
+    num pos = 0
+    num token_count = 0
+    num line = 1
+    
+    call("=== Tokens ===")
+
+    loop {
+        if (pos >= length) {
+            break
+        }
+        
+        chr current = chr_at(src, pos)
+        num handled = 0
+        
+        if handled == 0 {
+            if is_space(current) == 1 {
+                if current == "\n" { line = line + 1 }
+                pos = pos + 1
+                handled = 1
+            }
+        }
+
+        // Comment check
+        if handled == 0 {
+            if current == "/" {
+                if (pos + 1 < length) {
+                    chr next = chr_at(src, pos + 1)
+                    if next == "/" {
+                        loop {
+                            if (pos >= length) { break }
+                            chr c = chr_at(src, pos)
+                            if c == "\n" { break }
+                            pos = pos + 1
+                        }
+                        handled = 1
+                    }
+                }
+            }
+        }
+
+        num cur_line = line + 0
+
+        // String check
+        if handled == 0 {
+            if current == "\"" {
+                pos = pos + 1
+                chr str_val = ""
+                loop {
+                    if (pos >= length) { break }
+                    chr c = chr_at(src, pos)
+                    if c == "\"" {
+                        pos = pos + 1
+                        break
+                    }
+                    if c == "\n" { line = line + 1 }
+                    str_val = concat(str_val, c)
+                    pos = pos + 1
+                }
+                call("" ["  [", token_count, "] L", cur_line, "  STR_LIT  \"", str_val, "\""])
+                token_count = token_count + 1
+                handled = 1
+            }
+        }
+
+        if handled == 0 {
+            if is_digit(current) == 1 {
+                // It's a number (flt or num)
+                num is_flt = 0
+                chr num_val = ""
+                loop {
+                    if (pos >= length) { break }
+                    chr n = chr_at(src, pos)
+                    num done_digit = 0
+                    if is_digit(n) == 1 {
+                        num_val = concat(num_val, n)
+                        pos = pos + 1
+                        done_digit = 1
+                    }
+                    if done_digit == 0 {
+                        if n == "." {
+                            if (pos + 1 < length) {
+                                chr n2 = chr_at(src, pos + 1)
+                                if n2 != "." {
+                                    if is_digit(n2) == 1 {
+                                        is_flt = 1
+                                        num_val = concat(num_val, n)
+                                        num_val = concat(num_val, n2)
+                                        pos = pos + 2
+                                        done_digit = 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if done_digit == 0 {
+                        break
+                    }
+                }
+                if is_flt == 1 {
+                    call("" ["  [", token_count, "] L", cur_line, "  FLT_LIT  \"", num_val, "\""])
+                } else {
+                    call("" ["  [", token_count, "] L", cur_line, "  NUM_LIT  \"", num_val, "\""])
+                }
+                token_count = token_count + 1
+                handled = 1
+            }
+        }
+
+        if handled == 0 {
+            if is_alpha(current) == 1 {
+                // It's an identifier or keyword
+                num start = pos + 0
+                num start_line = cur_line
+                chr c0 = ""
+                c0 = current
+                chr id_val = ""
+                loop {
+                    if (pos >= length) { break }
+                    chr n = chr_at(src, pos)
+                    if is_alnum(n) == 0 { break }
+                    id_val = concat(id_val, n)
+                    pos = pos + 1
+                }
+                num len_val = pos - start
+                
+            num is_kw = 0
+            if (start + 0 < length) {
+              if c0 == "n" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "u" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "m" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  num  \"num\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "c" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "h" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "r" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  chr  \"chr\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "f" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  flt  \"flt\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "b" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "o" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  blo  \"blo\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "d" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "b" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  dob  \"dob\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "b" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "y" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  byt  \"byt\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "m" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "k" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  make  \"make\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "r" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "e" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  ret  \"ret\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "i" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "f" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  if  \"if\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "e" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "i" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "f" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  elif  \"elif\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "e" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "s" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  else  \"else\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "l" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "o" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "p" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  loop  \"loop\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "b" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "r" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "e" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "a" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "k" {
+                      if len_val == 5 {
+                        call("" ["  [", token_count, "] L", start_line, "  break  \"break\""])
+                        is_kw = 1
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "w" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "h" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "e" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "n" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  when  \"when\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "s" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "h" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "a" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "p" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "e" {
+                      if len_val == 5 {
+                        call("" ["  [", token_count, "] L", start_line, "  shape  \"shape\""])
+                        is_kw = 1
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "f" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "i" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "x" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  fix  \"fix\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "m" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "u" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  mut  \"mut\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "l" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "a" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "d" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  load  \"load\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "p" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "u" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "b" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  pub  \"pub\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "a" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "s" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  as  \"as\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "i" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "n" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  in  \"in\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "a" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "n" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "d" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  and  \"and\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "o" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "r" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  or  \"or\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "n" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  not  \"not\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "t" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "r" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "u" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  true  \"true\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "f" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "l" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "s" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "e" {
+                      if len_val == 5 {
+                        call("" ["  [", token_count, "] L", start_line, "  false  \"false\""])
+                        is_kw = 1
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "a" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "l" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "o" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "c" {
+                      if len_val == 5 {
+                        call("" ["  [", token_count, "] L", start_line, "  alloc  \"alloc\""])
+                        is_kw = 1
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "d" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "r" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "o" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "p" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  drop  \"drop\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "s" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "y" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "s" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  sys  \"sys\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "c" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "l" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "l" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  call  \"call\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "g" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "e" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  get  \"get\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "s" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "f" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  safe  \"safe\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "f" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "i" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "l" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  fail  \"fail\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "m" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "c" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "h" {
+                      if len_val == 5 {
+                        call("" ["  [", token_count, "] L", start_line, "  match  \"match\""])
+                        is_kw = 1
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "c" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "a" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "s" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  case  \"case\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "c" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "n" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "t" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "i" {
+                      if (start + 5 < length) {
+                        if chr_at(src, start + 5) == "n" {
+                        if (start + 6 < length) {
+                          if chr_at(src, start + 6) == "u" {
+                          if (start + 7 < length) {
+                            if chr_at(src, start + 7) == "e" {
+                            if len_val == 8 {
+                              call("" ["  [", token_count, "] L", start_line, "  continue  \"continue\""])
+                              is_kw = 1
+                            }
+                            }
+                          }
+                          }
+                        }
+                        }
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "o" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "k" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  ok  \"ok\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "e" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "r" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "r" {
+                  if len_val == 3 {
+                    call("" ["  [", token_count, "] L", start_line, "  err  \"err\""])
+                    is_kw = 1
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "s" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "m" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  some  \"some\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "n" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "o" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "n" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if len_val == 4 {
+                      call("" ["  [", token_count, "] L", start_line, "  none  \"none\""])
+                      is_kw = 1
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "f" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "n" {
+                if len_val == 2 {
+                  call("" ["  [", token_count, "] L", start_line, "  make  \"fn\""])
+                  is_kw = 1
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "r" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "e" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "u" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "r" {
+                      if (start + 5 < length) {
+                        if chr_at(src, start + 5) == "n" {
+                        if len_val == 6 {
+                          call("" ["  [", token_count, "] L", start_line, "  ret  \"return\""])
+                          is_kw = 1
+                        }
+                        }
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if (start + 0 < length) {
+              if c0 == "b" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "l" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "u" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "p" {
+                      if (start + 5 < length) {
+                        if chr_at(src, start + 5) == "r" {
+                        if (start + 6 < length) {
+                          if chr_at(src, start + 6) == "i" {
+                          if (start + 7 < length) {
+                            if chr_at(src, start + 7) == "n" {
+                            if (start + 8 < length) {
+                              if chr_at(src, start + 8) == "t" {
+                              if len_val == 9 {
+                                call("" ["  [", token_count, "] L", start_line, "  shape  \"blueprint\""])
+                                is_kw = 1
+                              }
+                              }
+                            }
+                            }
+                          }
+                          }
+                        }
+                        }
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+
+            if (start + 0 < length) {
+              if c0 == "e" {
+              if (start + 1 < length) {
+                if chr_at(src, start + 1) == "x" {
+                if (start + 2 < length) {
+                  if chr_at(src, start + 2) == "t" {
+                  if (start + 3 < length) {
+                    if chr_at(src, start + 3) == "e" {
+                    if (start + 4 < length) {
+                      if chr_at(src, start + 4) == "r" {
+                      if (start + 5 < length) {
+                        if chr_at(src, start + 5) == "n" {
+                        if len_val == 6 {
+                          call("" ["  [", token_count, "] L", start_line, "  extern  \"extern\""])
+                          is_kw = 1
+                        }
+                        }
+                      }
+                      }
+                    }
+                    }
+                  }
+                  }
+                }
+                }
+              }
+              }
+            }
+            if is_kw == 0 {
+                call("" ["  [", token_count, "] L", start_line, "  IDENT  \"", id_val, "\""])
+            }
+
+                token_count = token_count + 1
+                handled = 1
+            }
+        }
+
+        if handled == 0 {
+            if current == "+" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  +  \"+\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "-" {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == ">" {
+                        call("" ["  [", token_count, "] L", cur_line, "  ->  \"->\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  -  \"-\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "*" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  *  \"*\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "/" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  /  \"/\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "%" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  %  \"%\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "<" {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == "=" {
+                        call("" ["  [", token_count, "] L", cur_line, "  <=  \"<=\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  <  \"<\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == ">" {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == "=" {
+                        call("" ["  [", token_count, "] L", cur_line, "  >=  \">=\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  >  \">\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "=" {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == "=" {
+                        call("" ["  [", token_count, "] L", cur_line, "  ==  \"==\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  =  \"=\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "!" {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == "=" {
+                        call("" ["  [", token_count, "] L", cur_line, "  !=  \"!=\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  !  \"!\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "?" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  ?  \"?\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "(" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  (  \"(\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == ")" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  )  \")\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "{" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  {  \"{\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "}" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  }  \"}\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "[" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  [  \"[\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "]" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  ]  \"]\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == ";" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  ;  \";\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "," {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  ,  \",\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == "." {
+                if (pos + 1 < length) {
+                    if chr_at(src, pos + 1) == "." {
+                        call("" ["  [", token_count, "] L", cur_line, "  ..  \"..\""])
+                        pos = pos + 2
+                        token_count = token_count + 1
+                        handled = 1
+                    }
+                }
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  .  \".\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        if handled == 0 {
+            if current == ":" {
+                if handled == 0 {
+                    call("" ["  [", token_count, "] L", cur_line, "  :  \":\""])
+                    pos = pos + 1
+                    token_count = token_count + 1
+                    handled = 1
+                }
+            }
+        }
+        
+        if handled == 0 {
+            // Unknown character
+            call("" ["  [", token_count, "] L", cur_line, "  UNKNOWN"])
+            pos = pos + 1
+            token_count = token_count + 1
+        }
+    }
+
+    call("" ["  [", token_count, "] L", line, "  EOF  \"\""])
+    token_count = token_count + 1
+
+    call("" ["=== ", token_count, " tokens ==="])
+}
+
+sys.rdx {
+    chr source_code = "make main(num x) { ret x + 10.5 == \"hello\" }\n"
+    tokenize(source_code)
+}
+

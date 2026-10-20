@@ -46,6 +46,7 @@ typedef struct {
     char           var_name[64];
     OwnershipState state;
     int            line;        /* line of last state change */
+    int            col;         /* column of last state change */
 } TrackedVariable;
 
 /* ============================================================

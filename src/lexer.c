@@ -1,271 +1,598 @@
 /*
- * lexer.c — RDX Tokeniser (v2 — simplified syntax)
- * Target : x86-64 Windows, MinGW -nostdlib -lkernel32
+ * ============================================================================
+ *  lexer.c  —  RDX Hand-Rolled Lexical Analyzer Implementation
+ * ============================================================================
  */
+
 #include "lexer.h"
 
-/* ============================================================ §1 Char helpers */
-static inline bool lx_is_alpha(char c) {
+const char *token_type_name(TokenType type) {
+    switch (type) {
+        case TOK_EOF:          return "EOF";
+        case TOK_ERROR:        return "ERROR";
+        case TOK_INT_LIT:      return "INT_LIT";
+        case TOK_FLOAT_LIT:    return "FLOAT_LIT";
+        case TOK_STR_LIT:      return "STR_LIT";
+        case TOK_CHAR_LIT:     return "CHAR_LIT";
+        case TOK_TRUE:         return "true";
+        case TOK_FALSE:        return "false";
+        case TOK_NIL:          return "nil";
+        case TOK_FN:           return "fn";
+        case TOK_LET:          return "let";
+        case TOK_MUT:          return "mut";
+        case TOK_FIX:          return "fix";
+        case TOK_IF:           return "if";
+        case TOK_ELIF:         return "elif";
+        case TOK_ELSE:         return "else";
+        case TOK_LOOP:         return "loop";
+        case TOK_WHILE:        return "while";
+        case TOK_FOR:          return "for";
+        case TOK_IN:           return "in";
+        case TOK_BREAK:        return "break";
+        case TOK_CONTINUE:     return "continue";
+        case TOK_RETURN:       return "return";
+        case TOK_YIELD:        return "yield";
+        case TOK_SPAWN:        return "spawn";
+        case TOK_CAP:          return "cap";
+        case TOK_SHAPE:        return "shape";
+        case TOK_IMPL:         return "impl";
+        case TOK_SELF:         return "self";
+        case TOK_PUB:          return "pub";
+        case TOK_LOAD:         return "load";
+        case TOK_EXTERN:       return "extern";
+        case TOK_PRINT:        return "print";
+        case TOK_VOLATILE:     return "volatile";
+        case TOK_REG:          return "reg";
+        case TOK_PACKED:       return "packed";
+        case TOK_STRUCT:       return "struct";
+        case TOK_COMPTIME:     return "comptime";
+        case TOK_ASM:          return "asm";
+        case TOK_ISR:          return "isr";
+        case TOK_CAPABILITY:   return "capability";
+        case TOK_U8:           return "u8";
+        case TOK_U16:          return "u16";
+        case TOK_U32:          return "u32";
+        case TOK_U64:          return "u64";
+        case TOK_I8:           return "i8";
+        case TOK_I16:          return "i16";
+        case TOK_I32:          return "i32";
+        case TOK_I64:          return "i64";
+        case TOK_USIZE:        return "usize";
+        case TOK_ISIZE:        return "isize";
+        case TOK_F32:          return "f32";
+        case TOK_F64:          return "f64";
+        case TOK_TY_INT:       return "int";
+        case TOK_TY_FLOAT:     return "float";
+        case TOK_TY_BOOL:      return "bool";
+        case TOK_TY_STR:       return "str";
+        case TOK_TY_BYTE:      return "byte";
+        case TOK_TY_VOID:      return "void";
+        case TOK_AT:           return "@";
+        case TOK_IDENT:        return "IDENTIFIER";
+        case TOK_PLUS:         return "+";
+        case TOK_MINUS:        return "-";
+        case TOK_STAR:         return "*";
+        case TOK_SLASH:        return "/";
+        case TOK_PERCENT:      return "%";
+        case TOK_ASSIGN:       return "=";
+        case TOK_PLUS_ASSIGN:  return "+=";
+        case TOK_MINUS_ASSIGN: return "-=";
+        case TOK_STAR_ASSIGN:  return "*=";
+        case TOK_SLASH_ASSIGN: return "/=";
+        case TOK_EQ:           return "==";
+        case TOK_NEQ:          return "!=";
+        case TOK_LT:           return "<";
+        case TOK_LTE:          return "<=";
+        case TOK_GT:           return ">";
+        case TOK_GTE:          return ">=";
+        case TOK_AND:          return "and";
+        case TOK_OR:           return "or";
+        case TOK_NOT:          return "not";
+        case TOK_AMP:          return "&";
+        case TOK_PIPE:         return "|";
+        case TOK_CARET:        return "^";
+        case TOK_TILDE:        return "~";
+        case TOK_SHL:          return "<<";
+        case TOK_SHR:          return ">>";
+        case TOK_LPAREN:       return "(";
+        case TOK_RPAREN:       return ")";
+        case TOK_LBRACE:       return "{";
+        case TOK_RBRACE:       return "}";
+        case TOK_LBRACKET:     return "[";
+        case TOK_RBRACKET:     return "]";
+        case TOK_COMMA:        return ",";
+        case TOK_DOT:          return ".";
+        case TOK_DOTDOT:       return "..";
+        case TOK_COLON:        return ":";
+        case TOK_SEMICOLON:    return ";";
+        case TOK_ARROW:        return "->";
+        case TOK_FAT_ARROW:    return "=>";
+        case TOK_QUESTION:     return "?";
+        default:               return "<unknown>";
+    }
+}
+
+static inline bool is_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+static inline bool is_alpha(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
-static inline bool lx_is_digit(char c) { return c >= '0' && c <= '9'; }
-static inline bool lx_is_alnum(char c) { return lx_is_alpha(c) || lx_is_digit(c); }
 
-/* ============================================================ §2 Cursor */
-static inline char lx_peek (const Lexer *L) {
-    return (L->pos < L->length) ? L->source[L->pos] : '\0';
+static inline bool is_alnum(char c) {
+    return is_alpha(c) || is_digit(c);
 }
-static inline char lx_peek2(const Lexer *L) {
-    return (L->pos + 1 < L->length) ? L->source[L->pos + 1] : '\0';
+
+static inline bool is_hex_digit(char c) {
+    return (c >= '0' && c <= '9') ||
+           (c >= 'a' && c <= 'f') ||
+           (c >= 'A' && c <= 'F');
 }
-static inline char lx_advance(Lexer *L) {
-    char c = L->source[L->pos++];
-    if (c == '\n') L->line++;
+
+void lexer_init(Lexer *lexer, const char *source, usize length, const char *filename) {
+    lexer->source     = source;
+    lexer->cursor     = source;
+    lexer->start      = source;
+    lexer->source_len = length;
+    lexer->line       = 1;
+    lexer->col        = 1;
+    lexer->line_start = source;
+    lexer->filename   = filename ? filename : "<input>";
+}
+
+static inline bool is_at_end(const Lexer *lexer) {
+    return (usize)(lexer->cursor - lexer->source) >= lexer->source_len || *lexer->cursor == '\0';
+}
+
+static inline char peek(const Lexer *lexer) {
+    if (is_at_end(lexer)) return '\0';
+    return *lexer->cursor;
+}
+
+static inline char peek_next(const Lexer *lexer) {
+    if ((usize)(lexer->cursor - lexer->source) + 1 >= lexer->source_len) return '\0';
+    return lexer->cursor[1];
+}
+
+static inline char advance(Lexer *lexer) {
+    if (is_at_end(lexer)) return '\0';
+    char c = *lexer->cursor++;
+    if (c == '\n') {
+        lexer->line++;
+        lexer->col = 1;
+        lexer->line_start = lexer->cursor;
+    } else {
+        lexer->col++;
+    }
     return c;
 }
 
-/* ============================================================ §3 Skip whitespace + // comments */
-static void lx_skip(Lexer *L) {
-    while (L->pos < L->length) {
-        char c = lx_peek(L);
+static inline bool match(Lexer *lexer, char expected) {
+    if (is_at_end(lexer) || *lexer->cursor != expected) return FALSE;
+    advance(lexer);
+    return TRUE;
+}
+
+static void skip_whitespace_and_comments(Lexer *lexer) {
+    while (!is_at_end(lexer)) {
+        char c = peek(lexer);
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-            lx_advance(L);
-        } else if (c == '/' && lx_peek2(L) == '/') {
-            while (L->pos < L->length && lx_peek(L) != '\n') L->pos++;
+            advance(lexer);
+        } else if (c == '#' || (c == '/' && peek_next(lexer) == '/')) {
+            /* Single-line comment */
+            while (!is_at_end(lexer) && peek(lexer) != '\n') {
+                advance(lexer);
+            }
+        } else if (c == '/' && peek_next(lexer) == '*') {
+            /* Multi-line comment */
+            advance(lexer); /* '/' */
+            advance(lexer); /* '*' */
+            while (!is_at_end(lexer)) {
+                if (peek(lexer) == '*' && peek_next(lexer) == '/') {
+                    advance(lexer);
+                    advance(lexer);
+                    break;
+                }
+                advance(lexer);
+            }
         } else {
             break;
         }
     }
 }
 
-/* ============================================================ §4 Keyword table */
-typedef struct { const char *word; TokenType type; } KWEntry;
+static Token make_token(Lexer *lexer, TokenType type) {
+    Token tok;
+    tok.type   = type;
+    tok.start  = lexer->start;
+    tok.length = (usize)(lexer->cursor - lexer->start);
+    tok.line   = lexer->line;
+    tok.col    = (u32)(lexer->start - lexer->line_start + 1);
+    tok.int_val = 0;
+    return tok;
+}
 
-static const KWEntry kw_table[] = {
-    /* 3-letter type keywords */
-    { "num",   TOK_NUM   },
-    { "chr",   TOK_CHR   },
-    { "flt",   TOK_FLT   },
-    { "blo",   TOK_BLO   },
-    { "dob",   TOK_DOB   },
-    { "byt",   TOK_BYT   },
-    /* statement keywords */
-    { "make",  TOK_MAKE  },
-    { "ret",   TOK_RET   },
-    { "if",    TOK_IF    },
-    { "elif",  TOK_ELIF  },
-    { "else",  TOK_ELSE  },
-    { "loop",  TOK_LOOP  },
-    { "break", TOK_BREAK },
-    { "when",  TOK_WHEN  },
-    { "shape", TOK_SHAPE },
-    { "fix",   TOK_FIX   },
-    { "mut",   TOK_MUT   },
-    { "load",  TOK_LOAD  },
-    { "pub",   TOK_PUB   },
-    { "as",    TOK_AS    },
-    { "in",    TOK_IN    },
-    { "and",   TOK_AND   },
-    { "or",    TOK_OR    },
-    { "not",   TOK_NOT   },
-    { "true",  TOK_TRUE  },
-    { "false", TOK_FALSE },
-    { "alloc", TOK_ALLOC },
-    { "drop",  TOK_DROP  },
-    { "sys",   TOK_SYS   },
-    { "call",  TOK_CALL  },
-    { "get",   TOK_GET   },
-    { "safe",  TOK_SAFE  },
-    { "fail",  TOK_FAIL  },
-    { "match", TOK_MATCH },
-    { "case",  TOK_CASE  },
-    { "continue", TOK_CONTINUE },
-    /* backward-compat aliases */
-    { "fn",      TOK_MAKE   },
-    { "return",  TOK_RET    },
-    { "blueprint", TOK_SHAPE },
-    { "println", TOK_CALL   },  /* println == call with newline */
-    { NULL, 0 }
-};
+static Token make_error_token(Lexer *lexer, const char *message) {
+    Token tok;
+    tok.type    = TOK_ERROR;
+    tok.start   = message;
+    tok.length  = my_strlen(message);
+    tok.line    = lexer->line;
+    tok.col     = (u32)(lexer->start - lexer->line_start + 1);
+    tok.int_val = 0;
+    return tok;
+}
 
-static TokenType lx_lookup_kw(const char *word) {
-    for (int i = 0; kw_table[i].word != NULL; i++)
-        if (my_strcmp(word, kw_table[i].word) == 0)
-            return kw_table[i].type;
+/* Fast Trie / Keyword Recognition */
+static TokenType check_keyword(const char *start, usize length, const char *rest, TokenType type) {
+    usize rest_len = my_strlen(rest);
+    if (length == rest_len + (usize)(start - start) && my_strncmp(start, rest, rest_len) == 0) {
+        return type;
+    }
     return TOK_IDENT;
 }
 
-/* ============================================================ §5 Error */
-static void lx_error(Lexer *L, int line, const char *msg) {
-    L->had_error = 1;
-    rdx_print_err("[RDX LEX ERROR] line ");
-    char lbuf[12]; char *p = lbuf + 11; *p = '\0';
-    int tmp = line;
-    if (tmp <= 0) { *--p = '0'; }
-    else { while (tmp) { *--p = '0' + (tmp % 10); tmp /= 10; } }
-    rdx_print_err(p);
-    rdx_print_err(": "); rdx_print_err(msg); rdx_print_err("\r\n");
+static TokenType identifier_type(const char *start, usize length) {
+    #define MATCH_KW(str, tok_type) \
+        if (length == sizeof(str)-1 && my_strncmp(start, str, sizeof(str)-1) == 0) return tok_type
+
+    switch (start[0]) {
+        case 'a':
+            MATCH_KW("and", TOK_AND);
+            MATCH_KW("as", TOK_IN);
+            MATCH_KW("asm", TOK_ASM);
+            break;
+        case 'b':
+            MATCH_KW("bool", TOK_TY_BOOL);
+            MATCH_KW("blo", TOK_TY_BOOL);
+            MATCH_KW("byte", TOK_TY_BYTE);
+            MATCH_KW("byt", TOK_TY_BYTE);
+            MATCH_KW("break", TOK_BREAK);
+            break;
+        case 'c':
+            MATCH_KW("cap", TOK_CAP);
+            MATCH_KW("capability", TOK_CAPABILITY);
+            MATCH_KW("comptime", TOK_COMPTIME);
+            MATCH_KW("call", TOK_PRINT);
+            MATCH_KW("chr", TOK_TY_STR);
+            MATCH_KW("continue", TOK_CONTINUE);
+            MATCH_KW("case", TOK_IDENT);
+            break;
+        case 'd':
+            MATCH_KW("dob", TOK_TY_FLOAT);
+            MATCH_KW("drop", TOK_IDENT);
+            break;
+        case 'e':
+            MATCH_KW("else", TOK_ELSE);
+            MATCH_KW("elif", TOK_ELIF);
+            MATCH_KW("extern", TOK_EXTERN);
+            break;
+        case 'f':
+            MATCH_KW("fn", TOK_FN);
+            MATCH_KW("fix", TOK_FIX);
+            MATCH_KW("for", TOK_FOR);
+            MATCH_KW("float", TOK_TY_FLOAT);
+            MATCH_KW("flt", TOK_TY_FLOAT);
+            MATCH_KW("false", TOK_FALSE);
+            MATCH_KW("f32", TOK_F32);
+            MATCH_KW("f64", TOK_F64);
+            break;
+        case 'i':
+            MATCH_KW("if", TOK_IF);
+            MATCH_KW("in", TOK_IN);
+            MATCH_KW("int", TOK_TY_INT);
+            MATCH_KW("impl", TOK_IMPL);
+            MATCH_KW("isr", TOK_ISR);
+            MATCH_KW("i8", TOK_I8);
+            MATCH_KW("i16", TOK_I16);
+            MATCH_KW("i32", TOK_I32);
+            MATCH_KW("i64", TOK_I64);
+            MATCH_KW("isize", TOK_ISIZE);
+            break;
+        case 'l':
+            MATCH_KW("let", TOK_LET);
+            MATCH_KW("loop", TOK_LOOP);
+            MATCH_KW("load", TOK_LOAD);
+            break;
+        case 'm':
+            MATCH_KW("mut", TOK_MUT);
+            MATCH_KW("make", TOK_FN);
+            MATCH_KW("match", TOK_IDENT);
+            break;
+        case 'n':
+            MATCH_KW("nil", TOK_NIL);
+            MATCH_KW("none", TOK_NIL);
+            MATCH_KW("not", TOK_NOT);
+            MATCH_KW("num", TOK_TY_INT);
+            break;
+        case 'o':
+            MATCH_KW("or", TOK_OR);
+            MATCH_KW("ok", TOK_IDENT);
+            break;
+        case 'p':
+            MATCH_KW("print", TOK_PRINT);
+            MATCH_KW("pub", TOK_PUB);
+            MATCH_KW("packed", TOK_PACKED);
+            break;
+        case 'r':
+            MATCH_KW("return", TOK_RETURN);
+            MATCH_KW("ret", TOK_RETURN);
+            MATCH_KW("reg", TOK_REG);
+            break;
+        case 's':
+            MATCH_KW("spawn", TOK_SPAWN);
+            MATCH_KW("self", TOK_SELF);
+            MATCH_KW("shape", TOK_SHAPE);
+            MATCH_KW("struct", TOK_STRUCT);
+            MATCH_KW("str", TOK_TY_STR);
+            MATCH_KW("sys", TOK_CAP);
+            break;
+        case 't':
+            MATCH_KW("true", TOK_TRUE);
+            break;
+        case 'u':
+            MATCH_KW("u8", TOK_U8);
+            MATCH_KW("u16", TOK_U16);
+            MATCH_KW("u32", TOK_U32);
+            MATCH_KW("u64", TOK_U64);
+            MATCH_KW("usize", TOK_USIZE);
+            break;
+        case 'v':
+            MATCH_KW("void", TOK_TY_VOID);
+            MATCH_KW("volatile", TOK_VOLATILE);
+            break;
+        case 'w':
+            MATCH_KW("while", TOK_WHILE);
+            MATCH_KW("when", TOK_IDENT);
+            break;
+        case 'y':
+            MATCH_KW("yield", TOK_YIELD);
+            break;
+    }
+    #undef MATCH_KW
+    return TOK_IDENT;
 }
 
-/* ============================================================ §6 Emit */
-static void lx_emit(Lexer *L, TokenType type, const char *val, int line) {
-    if (L->token_count >= (int)MAX_TOKENS) { lx_error(L, line, "token buffer overflow"); return; }
-    Token *t = &L->tokens[L->token_count++];
-    t->type = type; t->line = line;
-    my_strncpy(t->value, val, 255); t->value[255] = '\0';
+static Token scan_identifier(Lexer *lexer) {
+    while (is_alnum(peek(lexer))) {
+        advance(lexer);
+    }
+    usize length = (usize)(lexer->cursor - lexer->start);
+    TokenType type = identifier_type(lexer->start, length);
+    return make_token(lexer, type);
 }
 
-/* ============================================================ §7 Scanners */
-static void lx_scan_ident(Lexer *L) {
-    int start_line = L->line;
-    usize start = L->pos;
-    while (L->pos < L->length && lx_is_alnum(lx_peek(L))) L->pos++;
-    usize len = L->pos - start; if (len > 255) len = 255;
-    char word[256]; my_memcpy(word, L->source + start, len); word[len] = '\0';
-    lx_emit(L, lx_lookup_kw(word), word, start_line);
-}
-
-static void lx_scan_number(Lexer *L) {
-    int start_line = L->line;
-    usize start = L->pos;
+static Token scan_number(Lexer *lexer) {
     bool is_float = FALSE;
-    while (L->pos < L->length) {
-        char c = lx_peek(L);
-        if (lx_is_digit(c)) { L->pos++; }
-        else if (c == '.' && lx_peek2(L) != '.') {
-            /* single dot followed by digit = float; '..' = range op, not consumed here */
-            if (lx_is_digit(lx_peek2(L))) { is_float = TRUE; L->pos++; }
-            else break;
-        } else break;
-    }
-    usize len = L->pos - start; if (len > 63) len = 63;
-    char buf[64]; my_memcpy(buf, L->source + start, len); buf[len] = '\0';
-    lx_emit(L, is_float ? TOK_FLT_LIT : TOK_NUM_LIT, buf, start_line);
-}
+    const char *start = lexer->start;
 
-static void lx_scan_string(Lexer *L) {
-    int start_line = L->line;
-    L->pos++; /* consume '"' */
-    char buf[4097]; usize out = 0;
-    while (L->pos < L->length) {
-        char c = L->source[L->pos];
-        if (c == '"') { L->pos++; break; }
-        if (c == '\n' || c == '\r') { lx_error(L, start_line, "unterminated string"); break; }
-        if (c == '\\') {
-            L->pos++;
-            if (L->pos >= L->length) break;
-            char esc = L->source[L->pos++];
-            switch (esc) {
-                case 'n': buf[out++] = '\n'; break; case 'r': buf[out++] = '\r'; break;
-                case 't': buf[out++] = '\t'; break; case '0': buf[out++] = '\0'; break;
-                case '\\': buf[out++] = '\\'; break; case '"': buf[out++] = '"'; break;
-                default: buf[out++] = '\\'; buf[out++] = esc; break;
-            }
-        } else { buf[out++] = c; L->pos++; }
-        if (out >= 4096) { lx_error(L, start_line, "string literal too long"); break; }
+    /* Hexadecimal 0x... */
+    if (start[0] == '0' && (peek(lexer) == 'x' || peek(lexer) == 'X')) {
+        advance(lexer); /* 'x' */
+        i64 val = 0;
+        while (is_hex_digit(peek(lexer))) {
+            char c = advance(lexer);
+            val = (val << 4);
+            if (c >= '0' && c <= '9') val += (c - '0');
+            else if (c >= 'a' && c <= 'f') val += (c - 'a' + 10);
+            else if (c >= 'A' && c <= 'F') val += (c - 'A' + 10);
+        }
+        Token tok = make_token(lexer, TOK_INT_LIT);
+        tok.int_val = val;
+        return tok;
     }
-    buf[out] = '\0';
-    lx_emit(L, TOK_STR_LIT, buf, start_line);
-}
 
-/* ============================================================ §8 Main dispatch */
-static void lx_next(Lexer *L) {
-    lx_skip(L);
-    if (L->pos >= L->length) { lx_emit(L, TOK_EOF, "", L->line); return; }
-    int cur_line = L->line;
-    char c = lx_peek(L);
-    if (lx_is_alpha(c)) { lx_scan_ident(L);  return; }
-    if (lx_is_digit(c)) { lx_scan_number(L); return; }
-    if (c == '"')        { lx_scan_string(L); return; }
-    lx_advance(L);
-    switch (c) {
-        case '+': lx_emit(L, TOK_PLUS,     "+",  cur_line); break;
-        case '*': lx_emit(L, TOK_STAR,     "*",  cur_line); break;
-        case '%': lx_emit(L, TOK_PERCENT,  "%",  cur_line); break;
-        case '(': lx_emit(L, TOK_LPAREN,   "(",  cur_line); break;
-        case ')': lx_emit(L, TOK_RPAREN,   ")",  cur_line); break;
-        case '{': lx_emit(L, TOK_LBRACE,   "{",  cur_line); break;
-        case '}': lx_emit(L, TOK_RBRACE,   "}",  cur_line); break;
-        case '[': lx_emit(L, TOK_LBRACKET, "[",  cur_line); break;
-        case ']': lx_emit(L, TOK_RBRACKET, "]",  cur_line); break;
-        case ';': lx_emit(L, TOK_SEMICOLON,";",  cur_line); break;
-        case ',': lx_emit(L, TOK_COMMA,    ",",  cur_line); break;
-        case ':': lx_emit(L, TOK_COLON,    ":",  cur_line); break;
-        case '/': lx_emit(L, TOK_SLASH,    "/",  cur_line); break;
-        case '.':
-            if (lx_peek(L) == '.') { lx_advance(L); lx_emit(L, TOK_DOTDOT, "..", cur_line); }
-            else                   { lx_emit(L, TOK_DOT, ".", cur_line); }
-            break;
-        case '-':
-            if (lx_peek(L) == '>') { lx_advance(L); lx_emit(L, TOK_ARROW, "->", cur_line); }
-            else                   { lx_emit(L, TOK_MINUS, "-", cur_line); }
-            break;
-        case '=':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_EQ, "==", cur_line); }
-            else                   { lx_emit(L, TOK_ASSIGN, "=", cur_line); }
-            break;
-        case '!':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_NEQ, "!=", cur_line); }
-            else { lx_error(L, cur_line, "unexpected '!'"); lx_emit(L, TOK_UNKNOWN, "!", cur_line); }
-            break;
-        case '<':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_LTE, "<=", cur_line); }
-            else                   { lx_emit(L, TOK_LT, "<", cur_line); }
-            break;
-        case '>':
-            if (lx_peek(L) == '=') { lx_advance(L); lx_emit(L, TOK_GTE, ">=", cur_line); }
-            else                   { lx_emit(L, TOK_GT, ">", cur_line); }
-            break;
-        default: {
-            char msg[48] = "unexpected character: '?'"; msg[23] = c;
-            lx_error(L, cur_line, msg);
-            char unk[2] = { c, '\0' }; lx_emit(L, TOK_UNKNOWN, unk, cur_line);
-            break;
+    /* Binary 0b... */
+    if (start[0] == '0' && (peek(lexer) == 'b' || peek(lexer) == 'B')) {
+        advance(lexer); /* 'b' */
+        i64 val = 0;
+        while (peek(lexer) == '0' || peek(lexer) == '1') {
+            char c = advance(lexer);
+            val = (val << 1) + (c - '0');
+        }
+        Token tok = make_token(lexer, TOK_INT_LIT);
+        tok.int_val = val;
+        return tok;
+    }
+
+    /* Decimal */
+    while (is_digit(peek(lexer))) {
+        advance(lexer);
+    }
+
+    /* Fractional */
+    if (peek(lexer) == '.' && is_digit(peek_next(lexer))) {
+        is_float = TRUE;
+        advance(lexer); /* '.' */
+        while (is_digit(peek(lexer))) {
+            advance(lexer);
         }
     }
+
+    /* Scientific exponent (e/E) */
+    if (peek(lexer) == 'e' || peek(lexer) == 'E') {
+        is_float = TRUE;
+        advance(lexer);
+        if (peek(lexer) == '+' || peek(lexer) == '-') {
+            advance(lexer);
+        }
+        while (is_digit(peek(lexer))) {
+            advance(lexer);
+        }
+    }
+
+    Token tok = make_token(lexer, is_float ? TOK_FLOAT_LIT : TOK_INT_LIT);
+
+    if (is_float) {
+        /* Parse double */
+        double result = 0.0;
+        double sign = 1.0;
+        const char *p = tok.start;
+        if (*p == '-') { sign = -1.0; p++; }
+        else if (*p == '+') { p++; }
+
+        while (is_digit(*p)) {
+            result = result * 10.0 + (*p - '0');
+            p++;
+        }
+        if (*p == '.') {
+            p++;
+            double factor = 0.1;
+            while (is_digit(*p)) {
+                result += (*p - '0') * factor;
+                factor *= 0.1;
+                p++;
+            }
+        }
+        tok.float_val = result * sign;
+    } else {
+        /* Parse i64 */
+        i64 val = 0;
+        const char *p = tok.start;
+        while (p < lexer->cursor && is_digit(*p)) {
+            val = val * 10 + (*p - '0');
+            p++;
+        }
+        tok.int_val = val;
+    }
+
+    return tok;
 }
 
-/* ============================================================ §9 Public API */
-void lexer_init(Lexer *L, const char *source) {
-    L->source = source; L->pos = 0; L->length = my_strlen(source);
-    L->line = 1; L->token_count = 0; L->had_error = 0;
-    L->tokens = (Token*)rdx_alloc_bump(sizeof(Token) * MAX_TOKENS);
-    if (L->tokens == NULL) rdx_panic("lexer_init: OOM");
-}
-int lexer_tokenize(Lexer *L) {
-    while (1) {
-        lx_next(L);
-        if (L->token_count > 0 && L->tokens[L->token_count - 1].type == TOK_EOF) break;
-        if (L->token_count >= (int)MAX_TOKENS) break;
+static Token scan_string(Lexer *lexer) {
+    while (!is_at_end(lexer) && peek(lexer) != '"') {
+        if (peek(lexer) == '\\') {
+            advance(lexer); /* skip escape char */
+        }
+        advance(lexer);
     }
-    return L->had_error ? -1 : L->token_count;
+
+    if (is_at_end(lexer)) {
+        return make_error_token(lexer, "Unterminated string literal");
+    }
+
+    advance(lexer); /* closing '"' */
+    return make_token(lexer, TOK_STR_LIT);
 }
 
-const char *token_type_name(TokenType t) {
-    static const char *names[] = {
-        "NUM_LIT","STR_LIT","FLT_LIT",
-        "num","chr","flt","blo","dob","byt",
-        "make","ret","if","elif","else","loop","break","when","shape","fix","mut",
-        "load","pub","as","in","and","or","not","true","false",
-        "alloc","drop","sys","call",
-        "IDENT",
-        "+","-","*","/","%",
-        "==","!=","<",">","<=",">=",
-        "=","->","..",
-        "(",")","{","}","[","]",";",",",".",":"
-        "EOF","UNKNOWN",NULL
-    };
-    if ((int)t < 0 || t >= TOK_COUNT) return "???";
-    return names[t];
-}
-void lexer_dump(const Lexer *L) {
-    rdx_print("=== Tokens ===\r\n");
-    for (int i = 0; i < L->token_count; i++) {
-        const Token *t = &L->tokens[i];
-        rdx_print("  ["); rdx_print_num((i64)i); rdx_print("] L");
-        rdx_print_num((i64)t->line); rdx_print("  ");
-        rdx_print(token_type_name(t->type)); rdx_print("  \"");
-        rdx_print(t->value); rdx_print("\"\r\n");
+static Token scan_char(Lexer *lexer) {
+    if (is_at_end(lexer) || peek(lexer) == '\'') {
+        return make_error_token(lexer, "Empty character literal");
     }
-    rdx_print("=== "); rdx_print_num((i64)L->token_count); rdx_print(" tokens ===\r\n");
+
+    char val = advance(lexer);
+    if (val == '\\') {
+        char esc = advance(lexer);
+        switch (esc) {
+            case 'n': val = '\n'; break;
+            case 't': val = '\t'; break;
+            case 'r': val = '\r'; break;
+            case '\\': val = '\\'; break;
+            case '\'': val = '\''; break;
+            case '0': val = '\0'; break;
+            default: val = esc; break;
+        }
+    }
+
+    if (!match(lexer, '\'')) {
+        return make_error_token(lexer, "Unterminated character literal");
+    }
+
+    Token tok = make_token(lexer, TOK_CHAR_LIT);
+    tok.char_val = val;
+    return tok;
+}
+
+Token lexer_next(Lexer *lexer) {
+    skip_whitespace_and_comments(lexer);
+    lexer->start = lexer->cursor;
+
+    if (is_at_end(lexer)) {
+        return make_token(lexer, TOK_EOF);
+    }
+
+    char c = advance(lexer);
+
+    if (is_alpha(c)) return scan_identifier(lexer);
+    if (is_digit(c)) return scan_number(lexer);
+
+    switch (c) {
+        case '(': return make_token(lexer, TOK_LPAREN);
+        case ')': return make_token(lexer, TOK_RPAREN);
+        case '{': return make_token(lexer, TOK_LBRACE);
+        case '}': return make_token(lexer, TOK_RBRACE);
+        case '[': return make_token(lexer, TOK_LBRACKET);
+        case ']': return make_token(lexer, TOK_RBRACKET);
+        case ',': return make_token(lexer, TOK_COMMA);
+        case ';': return make_token(lexer, TOK_SEMICOLON);
+        case ':': return make_token(lexer, TOK_COLON);
+        case '?': return make_token(lexer, TOK_QUESTION);
+        case '@': return make_token(lexer, TOK_AT);
+        case '~': return make_token(lexer, TOK_TILDE);
+        case '^': return make_token(lexer, TOK_CARET);
+
+        case '.':
+            if (match(lexer, '.')) return make_token(lexer, TOK_DOTDOT);
+            return make_token(lexer, TOK_DOT);
+
+        case '+':
+            if (match(lexer, '=')) return make_token(lexer, TOK_PLUS_ASSIGN);
+            return make_token(lexer, TOK_PLUS);
+
+        case '-':
+            if (match(lexer, '>')) return make_token(lexer, TOK_ARROW);
+            if (match(lexer, '=')) return make_token(lexer, TOK_MINUS_ASSIGN);
+            return make_token(lexer, TOK_MINUS);
+
+        case '*':
+            if (match(lexer, '=')) return make_token(lexer, TOK_STAR_ASSIGN);
+            return make_token(lexer, TOK_STAR);
+
+        case '/':
+            if (match(lexer, '=')) return make_token(lexer, TOK_SLASH_ASSIGN);
+            return make_token(lexer, TOK_SLASH);
+
+        case '%': return make_token(lexer, TOK_PERCENT);
+
+        case '!':
+            if (match(lexer, '=')) return make_token(lexer, TOK_NEQ);
+            return make_token(lexer, TOK_NOT);
+
+        case '=':
+            if (match(lexer, '=')) return make_token(lexer, TOK_EQ);
+            if (match(lexer, '>')) return make_token(lexer, TOK_FAT_ARROW);
+            return make_token(lexer, TOK_ASSIGN);
+
+        case '<':
+            if (match(lexer, '<')) return make_token(lexer, TOK_SHL);
+            if (match(lexer, '=')) return make_token(lexer, TOK_LTE);
+            return make_token(lexer, TOK_LT);
+
+        case '>':
+            if (match(lexer, '>')) return make_token(lexer, TOK_SHR);
+            if (match(lexer, '=')) return make_token(lexer, TOK_GTE);
+            return make_token(lexer, TOK_GT);
+
+        case '&':
+            if (match(lexer, '&')) return make_token(lexer, TOK_AND);
+            return make_token(lexer, TOK_AMP);
+
+        case '|':
+            if (match(lexer, '|')) return make_token(lexer, TOK_OR);
+            return make_token(lexer, TOK_PIPE);
+
+        case '"': return scan_string(lexer);
+        case '\'': return scan_char(lexer);
+
+        default:
+            return make_error_token(lexer, "Unexpected character encountered");
+    }
+}
+
+Token lexer_peek(Lexer *lexer) {
+    Lexer save = *lexer;
+    Token tok = lexer_next(lexer);
+    *lexer = save;
+    return tok;
 }

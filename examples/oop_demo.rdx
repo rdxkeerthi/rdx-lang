@@ -1,0 +1,297 @@
+// ================================================================
+//  oop_demo.rdx -- Object-Oriented Programming in RDX
+//  Demonstrates: shape (structs), make (methods/functions),
+//  simulated arrays via named variables, safe/fail, result types
+// ================================================================
+
+// ── Shape definitions (blueprints / "classes") ─────────────────
+
+shape Point {
+    num x;
+    num y;
+}
+
+shape Rectangle {
+    num x;
+    num y;
+    num w;
+    num h;
+}
+
+shape Student {
+    num id;
+    num score;
+    num grade;
+}
+
+// ── "Methods" as free functions (RDX style) ────────────────────
+
+make point_dist_sq(num ax, num ay, num bx, num by) -> num {
+    num dx = bx - ax
+    num dy = by - ay
+    ret dx * dx + dy * dy
+}
+
+make rect_area(num w, num h) -> num {
+    ret w * h
+}
+
+make rect_perimeter(num w, num h) -> num {
+    ret 2 * w + 2 * h
+}
+
+make rect_contains(num rx, num ry, num rw, num rh, num px, num py) -> num {
+    if px >= rx {
+        if px <= rx + rw {
+            if py >= ry {
+                if py <= ry + rh {
+                    ret 1
+                }
+            }
+        }
+    }
+    ret 0
+}
+
+make score_to_grade(num score) -> num {
+    if score >= 90 { ret 4 }
+    elif score >= 80 { ret 3 }
+    elif score >= 70 { ret 2 }
+    elif score >= 60 { ret 1 }
+    ret 0
+}
+
+make grade_label(num g) -> num {
+    // Returns an integer code; we print labels in sys.rdx
+    ret g
+}
+
+make max3(num a, num b, num c) -> num {
+    num m = a
+    if b > m { m = b }
+    if c > m { m = c }
+    ret m
+}
+
+make min3(num a, num b, num c) -> num {
+    num m = a
+    if b < m { m = b }
+    if c < m { m = c }
+    ret m
+}
+
+make average3(num a, num b, num c) -> num {
+    ret (a + b + c) / 3
+}
+
+// ── Entry point ───────────────────────────────────────────────
+
+sys.rdx {
+
+    // ============================================================
+    //  SECTION 1: Point objects + distance
+    // ============================================================
+    call("╔══════════════════════════════════════════════╗")
+    call("║   RDX OOP Demo — Shapes, Arrays & Methods   ║")
+    call("╚══════════════════════════════════════════════╝")
+    call("")
+
+    call("── Section 1: Point Objects ──────────────────")
+    Point origin = Point { x: 0, y: 0 }
+    Point a      = Point { x: 3, y: 4 }
+    Point b      = Point { x: 6, y: 8 }
+    Point c      = Point { x: 1, y: 7 }
+
+    call("origin  = (" [origin.x, ", ", origin.y, ")"])
+    call("point_a = (" [a.x, ", ", a.y, ")"])
+    call("point_b = (" [b.x, ", ", b.y, ")"])
+    call("point_c = (" [c.x, ", ", c.y, ")"])
+    call("")
+
+    num d1 = point_dist_sq(origin.x, origin.y, a.x, a.y)
+    num d2 = point_dist_sq(origin.x, origin.y, b.x, b.y)
+    num d3 = point_dist_sq(a.x, a.y, b.x, b.y)
+
+    num sq_d1 = sqrt(d1)
+    num sq_d2 = sqrt(d2)
+    num sq_d3 = sqrt(d3)
+    call("dist_sq(origin -> a) = " [d1, "  sqrt = ", sq_d1])
+    call("dist_sq(origin -> b) = " [d2, "  sqrt = ", sq_d2])
+    call("dist_sq(a -> b)      = " [d3, "  sqrt = ", sq_d3])
+    call("")
+
+    // ============================================================
+    //  SECTION 2: Rectangle objects + geometry
+    // ============================================================
+    call("── Section 2: Rectangle Objects ──────────────")
+
+    Rectangle r1 = Rectangle { x: 0, y: 0, w: 10, h: 5 }
+    Rectangle r2 = Rectangle { x: 3, y: 2, w: 7,  h: 4 }
+    Rectangle r3 = Rectangle { x: 5, y: 5, w: 12, h: 8 }
+
+    call("rect_r1: pos=(" [r1.x, ",", r1.y, ")  size=", r1.w, " x ", r1.h])
+    call("  area      = " [rect_area(r1.w, r1.h)])
+    call("  perimeter = " [rect_perimeter(r1.w, r1.h)])
+    call("")
+
+    call("rect_r2: pos=(" [r2.x, ",", r2.y, ")  size=", r2.w, " x ", r2.h])
+    call("  area      = " [rect_area(r2.w, r2.h)])
+    call("  perimeter = " [rect_perimeter(r2.w, r2.h)])
+    call("")
+
+    call("rect_r3: pos=(" [r3.x, ",", r3.y, ")  size=", r3.w, " x ", r3.h])
+    call("  area      = " [rect_area(r3.w, r3.h)])
+    call("  perimeter = " [rect_perimeter(r3.w, r3.h)])
+    call("")
+
+    // Point-in-rectangle tests
+    call("Contains tests (r1 0,0,10,5):")
+    num in0 = rect_contains(r1.x, r1.y, r1.w, r1.h, 5, 3)
+    num in1 = rect_contains(r1.x, r1.y, r1.w, r1.h, 11, 3)
+    num in2 = rect_contains(r1.x, r1.y, r1.w, r1.h, 0, 0)
+    if in0 == 1 { call("  point (5,3)  -> INSIDE  ✓") } else { call("  point (5,3)  -> outside") }
+    if in1 == 1 { call("  point (11,3) -> INSIDE") } else { call("  point (11,3) -> outside ✓") }
+    if in2 == 1 { call("  point (0,0)  -> INSIDE  ✓") } else { call("  point (0,0)  -> outside") }
+    call("")
+
+    // ============================================================
+    //  SECTION 3: Simulated Array — 6 Student objects
+    //  (No array indexing yet; we use named vars + unrolled loops)
+    // ============================================================
+    call("── Section 3: Student Array (6 students) ─────")
+
+    Student s0 = Student { id: 1, score: 95, grade: 0 }
+    Student s1 = Student { id: 2, score: 82, grade: 0 }
+    Student s2 = Student { id: 3, score: 67, grade: 0 }
+    Student s3 = Student { id: 4, score: 74, grade: 0 }
+    Student s4 = Student { id: 5, score: 55, grade: 0 }
+    Student s5 = Student { id: 6, score: 91, grade: 0 }
+
+    // Compute grades
+    s0.grade = score_to_grade(s0.score)
+    s1.grade = score_to_grade(s1.score)
+    s2.grade = score_to_grade(s2.score)
+    s3.grade = score_to_grade(s3.score)
+    s4.grade = score_to_grade(s4.score)
+    s5.grade = score_to_grade(s5.score)
+
+    call("ID  Score  GPA")
+    call("─────────────")
+
+    // Print all students
+    call(" " [s0.id, "   ", s0.score, "    ", s0.grade, ".0"])
+    call(" " [s1.id, "   ", s1.score, "    ", s1.grade, ".0"])
+    call(" " [s2.id, "   ", s2.score, "    ", s2.grade, ".0"])
+    call(" " [s3.id, "   ", s3.score, "    ", s3.grade, ".0"])
+    call(" " [s4.id, "   ", s4.score, "    ", s4.grade, ".0"])
+    call(" " [s5.id, "   ", s5.score, "    ", s5.grade, ".0"])
+    call("")
+
+    // Aggregate stats using built-in and custom functions
+    num top    = max(max(max(s0.score, s1.score), max(s2.score, s3.score)), max(s4.score, s5.score))
+    num bottom = min(min(min(s0.score, s1.score), min(s2.score, s3.score)), min(s4.score, s5.score))
+    num total  = s0.score + s1.score + s2.score + s3.score + s4.score + s5.score
+    num avg    = total / 6
+
+    call("Stats:")
+    call("  Highest score : " [top])
+    call("  Lowest  score : " [bottom])
+    call("  Total points  : " [total])
+    call("  Class average : " [avg])
+    call("  Range         : " [top - bottom])
+    call("")
+
+    // Grade distribution (count each GPA bucket)
+    mut num cnt_a = 0
+    mut num cnt_b = 0
+    mut num cnt_c = 0
+    mut num cnt_d = 0
+    mut num cnt_f = 0
+
+    if s0.grade == 4 { cnt_a = cnt_a + 1 } elif s0.grade == 3 { cnt_b = cnt_b + 1 } elif s0.grade == 2 { cnt_c = cnt_c + 1 } elif s0.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+    if s1.grade == 4 { cnt_a = cnt_a + 1 } elif s1.grade == 3 { cnt_b = cnt_b + 1 } elif s1.grade == 2 { cnt_c = cnt_c + 1 } elif s1.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+    if s2.grade == 4 { cnt_a = cnt_a + 1 } elif s2.grade == 3 { cnt_b = cnt_b + 1 } elif s2.grade == 2 { cnt_c = cnt_c + 1 } elif s2.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+    if s3.grade == 4 { cnt_a = cnt_a + 1 } elif s3.grade == 3 { cnt_b = cnt_b + 1 } elif s3.grade == 2 { cnt_c = cnt_c + 1 } elif s3.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+    if s4.grade == 4 { cnt_a = cnt_a + 1 } elif s4.grade == 3 { cnt_b = cnt_b + 1 } elif s4.grade == 2 { cnt_c = cnt_c + 1 } elif s4.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+    if s5.grade == 4 { cnt_a = cnt_a + 1 } elif s5.grade == 3 { cnt_b = cnt_b + 1 } elif s5.grade == 2 { cnt_c = cnt_c + 1 } elif s5.grade == 1 { cnt_d = cnt_d + 1 } else { cnt_f = cnt_f + 1 }
+
+    call("Grade Distribution:")
+    call("  A (90-100): " [cnt_a, " student(s)"])
+    call("  B (80-89):  " [cnt_b, " student(s)"])
+    call("  C (70-79):  " [cnt_c, " student(s)"])
+    call("  D (60-69):  " [cnt_d, " student(s)"])
+    call("  F (<60):    " [cnt_f, " student(s)"])
+    call("")
+
+    // ============================================================
+    //  SECTION 4: Simulated integer array — Fibonacci via vars
+    //  (unrolled, 10-element "array" f0..f9)
+    // ============================================================
+    call("── Section 4: Fibonacci Array (10 elements) ──")
+
+    mut num f0 = 0
+    mut num f1 = 1
+    mut num f2 = f0 + f1
+    mut num f3 = f1 + f2
+    mut num f4 = f2 + f3
+    mut num f5 = f3 + f4
+    mut num f6 = f4 + f5
+    mut num f7 = f5 + f6
+    mut num f8 = f6 + f7
+    mut num f9 = f7 + f8
+
+    call("f[0..4] = " [f0, " ", f1, " ", f2, " ", f3, " ", f4])
+    call("f[5..9] = " [f5, " ", f6, " ", f7, " ", f8, " ", f9])
+
+    num fib_sum = f0+f1+f2+f3+f4+f5+f6+f7+f8+f9
+    num fib_max = max(max(max(max(f0,f1),max(f2,f3)),max(max(f4,f5),max(f6,f7))),max(f8,f9))
+    call("Sum of first 10 fibs : " [fib_sum])
+    call("Max (f9)             : " [fib_max])
+    call("")
+
+    // ============================================================
+    //  SECTION 5: Safe / Result error handling on OOP data
+    // ============================================================
+    call("── Section 5: Safe / Fail Error Handling ─────")
+
+    // Simulate a divide-by-zero scenario on a computed field
+    mut num denominator = rect_area(r1.w, r1.h) - 50   // 10*5 - 50 = 0
+    call("denominator = " [denominator, "  (this will trigger safe/fail)"])
+
+    mut num safe_result = 0
+    safe {
+        num ratio = 100 / denominator
+        safe_result = ratio
+    } fail e {
+        call("  Caught error in safe block!")
+        safe_result = 0 - 1
+    }
+    call("safe_result = " [safe_result, "  (0-1 = divide-by-zero caught)"])
+    call("")
+
+    // ============================================================
+    //  SECTION 6: Object mutation — updating shape fields
+    // ============================================================
+    call("── Section 6: Object Mutation ────────────────")
+
+    Point mover = Point { x: 0, y: 0 }
+    call("start: (" [mover.x, ", ", mover.y, ")"])
+
+    // "Move" the point step by step (like method calls)
+    mut num step = 0
+    loop step < 5 {
+        mover.x = mover.x + 3
+        mover.y = mover.y + 2
+        call("step " [step, ": (", mover.x, ", ", mover.y, ")"])
+        step = step + 1
+    }
+
+    num final_dist = point_dist_sq(0, 0, mover.x, mover.y)
+    call("final dist_sq from origin = " [final_dist])
+    call("final dist (sqrt)         = " [sqrt(final_dist)])
+    call("")
+
+    call("╔══════════════════════════════════════════════╗")
+    call("║   All sections complete. Built with RDX 🐝   ║")
+    call("╚══════════════════════════════════════════════╝")
+}

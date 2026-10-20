@@ -1,0 +1,15 @@
+// ── aot_demo.rdx ──────────────────────────────────────────────────
+// Step 9: AOT compilation test script
+// Demonstrates functions, conditions, assignments, and math.
+
+make fib(num n) -> num {
+    if n <= 1 {
+        ret n
+    }
+    ret fib(n - 1) + fib(n - 2)
+}
+
+make main() {
+    num result = fib(20)
+    call(result)
+}

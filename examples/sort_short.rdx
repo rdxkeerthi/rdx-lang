@@ -1,0 +1,61 @@
+// sort_short.rdx -- Bubble sort driven by explicit counter loops
+// Every pass is visible: counter goes 1..4, swap count tracked
+
+make smallest(num a, num b, num c, num d, num e) -> num {
+    num m = a
+    if b < m { m = b }
+    if c < m { m = c }
+    if d < m { m = d }
+    if e < m { m = e }
+    ret m
+}
+
+make largest(num a, num b, num c, num d, num e) -> num {
+    num m = a
+    if b > m { m = b }
+    if c > m { m = c }
+    if d > m { m = d }
+    if e > m { m = e }
+    ret m
+}
+
+sys.rdx {
+    call("╔══════════════════════════════╗")
+    call("║   RDX Short Sort — 5 items   ║")
+    call("╚══════════════════════════════╝")
+
+    mut num a = 64
+    mut num b = 25
+    mut num c = 12
+    mut num d = 90
+    mut num e = 3
+
+    call("Unsorted: " [a, "  ", b, "  ", c, "  ", d, "  ", e])
+    call("")
+    call("── Bubble sort passes ──")
+
+    // explicit counter i starts at 1, increments each pass
+    mut num i = 1
+    mut num swaps = 0
+
+    loop i <= 4 {
+        // compare and swap each adjacent pair — swap counter tracks activity
+        if a > b { mut num t = a   a = b   b = t   swaps = swaps + 1 }
+        if b > c { mut num t = b   b = c   c = t   swaps = swaps + 1 }
+        if c > d { mut num t = c   c = d   d = t   swaps = swaps + 1 }
+        if d > e { mut num t = d   d = e   e = t   swaps = swaps + 1 }
+
+        call("Pass " [i, ":  ", a, "  ", b, "  ", c, "  ", d, "  ", e])
+
+        i = i + 1   // i++ equivalent
+    }
+
+    call("")
+    call("Sorted:  " [a, "  ", b, "  ", c, "  ", d, "  ", e])
+    call("Swaps:   " [swaps])
+    call("Min:     " [smallest(a, b, c, d, e)])
+    call("Max:     " [largest(a, b, c, d, e)])
+    call("Range:   " [e - a])
+    call("Sum:     " [a + b + c + d + e])
+    call("Average: " [(a + b + c + d + e) / 5])
+}

@@ -1,0 +1,8 @@
+// examples/module_demo/mathlib.rdx
+make square(num x) -> num {
+    ret x * x;
+}
+
+make cube(num x) -> num {
+    ret x * x * x;
+}

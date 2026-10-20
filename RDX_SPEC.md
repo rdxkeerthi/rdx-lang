@@ -569,13 +569,19 @@ unsafe {
 
 ---
 
-## 11. The `call()` System Function
+## 11. Calling Functions vs. Printing Output
 
-`call()` is the built-in output primitive. It prints to stdout, converting all arguments to
-their string representations and concatenating them inline.
+There is exactly one way to call any function in RDX: `name(args)`. This uniform rule applies identically to user-defined functions and standard library functions.
+
+However, printing to the console is handled through a distinct, dedicated keyword: `call`. 
+`call` is not an ordinary function; it is special parser syntax (`NODE_SYS_CALL`) with its own rules, such as bracket interpolation. 
+This distinction is deliberate: there is one dedicated keyword for output (`call`), and one uniform rule for function invocation (`name(args)`).
 
 ```rdx
-// String literal only
+// Ordinary function invocation
+result = math.add(10, 20);
+
+// Console output (special syntax, not a function)
 call("Hello, world!");
 
 // Interpolation — base string followed by variable list
