@@ -1,0 +1,285 @@
+// ============================================================
+//  complete_showcase.rdx — End-to-end showcase of ALL RDX features
+//  Run: rdx examples/complete_showcase.rdx
+// ============================================================
+
+print "=" * 60
+print "    RDX LANGUAGE v3.0  —  Complete Feature Showcase"
+print "=" * 60
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 1: Basic Data Types
+// ══════════════════════════════════════════════════════════
+print "[ 1 ] DATA TYPES"
+print "-" * 40
+
+integer_val  = 42
+float_val    = 3.14159
+string_val   = "Hello, RDX!"
+bool_val     = true
+nil_val      = nil
+list_val     = [1, 2, 3, "four", true]
+
+print "Integer:", integer_val, "type:", type(integer_val)
+print "Float:  ", float_val,   "type:", type(float_val)
+print "String: ", string_val,  "type:", type(string_val)
+print "Bool:   ", bool_val,    "type:", type(bool_val)
+print "Nil:    ", nil_val,     "type:", type(nil_val)
+print "List:   ", list_val,    "type:", type(list_val)
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 2: Control Flow
+// ══════════════════════════════════════════════════════════
+print "[ 2 ] CONTROL FLOW (if / elif / else)"
+print "-" * 40
+
+score = 82
+if score >= 90 {
+    grade = "A"
+} elif score >= 80 {
+    grade = "B"
+} elif score >= 70 {
+    grade = "C"
+} else {
+    grade = "F"
+}
+print "Score:", score, "-> Grade:", grade
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 3: Loops
+// ══════════════════════════════════════════════════════════
+print "[ 3 ] LOOPS (for / while / break / continue)"
+print "-" * 40
+
+// for-in loop
+fruits = ["apple", "banana", "cherry", "date"]
+print "Fruits:"
+for fruit in fruits {
+    print "  -", fruit
+}
+
+// range loop
+print "Even numbers 0-10:"
+evens = []
+for i in range(0, 11) {
+    if i % 2 == 0 {
+        append(evens, i)
+    }
+}
+print " ", evens
+
+// while with break
+print "While loop (stops at 7):"
+n = 0
+result_list = []
+while n < 20 {
+    if n == 7 { break }
+    append(result_list, n)
+    n += 1
+}
+print " ", result_list
+
+// continue
+print "Skip multiples of 3:"
+skipped = []
+for i in range(1, 16) {
+    if i % 3 == 0 { continue }
+    append(skipped, i)
+}
+print " ", skipped
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 4: Functions
+// ══════════════════════════════════════════════════════════
+print "[ 4 ] USER-DEFINED FUNCTIONS"
+print "-" * 40
+
+fn square(x)        { return x * x }
+fn cube(x)          { return x * x * x }
+fn is_even(n)       { return n % 2 == 0 }
+fn clamp(v, lo, hi) {
+    if v < lo { return lo }
+    if v > hi { return hi }
+    return v
+}
+
+print "square(7) =", square(7)
+print "cube(4) =", cube(4)
+print "is_even(10) =", is_even(10)
+print "is_even(11) =", is_even(11)
+print "clamp(-5, 0, 100) =", clamp(-5, 0, 100)
+print "clamp(150, 0, 100) =", clamp(150, 0, 100)
+print "clamp(42, 0, 100) =", clamp(42, 0, 100)
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 5: String Methods
+// ══════════════════════════════════════════════════════════
+print "[ 5 ] STRING METHODS"
+print "-" * 40
+
+s = "  Cyber Security Investigation  "
+print "Original: '" + s + "'"
+print "Trimmed: '", s.trim() + "'"
+print "Upper:", s.trim().upper()
+print "Contains 'Security':", s.contains("Security")
+print "Replace 'Security' -> 'Forensics':", s.trim().replace("Security", "Forensics")
+
+csv_row = "John,Doe,35,Engineer"
+fields = csv_row.split(",")
+print "CSV split:", fields
+print "First name:", fields[0]
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 6: Math Builtins
+// ══════════════════════════════════════════════════════════
+print "[ 6 ] MATH BUILTINS"
+print "-" * 40
+
+print "sqrt(625) =", math.sqrt(625)
+print "pow(2, 16) =", math.pow(2, 16)
+print "abs(-99) =", math.abs(-99)
+print "floor(3.7) =", math.floor(3.7)
+print "ceil(3.2) =", math.ceil(3.2)
+print "round(2.5) =", math.round(2.5)
+print "min(42, 17) =", math.min(42, 17)
+print "max(42, 17) =", math.max(42, 17)
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 7: Lists & Append
+// ══════════════════════════════════════════════════════════
+print "[ 7 ] LISTS & DYNAMIC OPERATIONS"
+print "-" * 40
+
+names = ["Alice", "Bob", "Charlie"]
+append(names, "Diana")
+append(names, "Eve")
+print "Names:", names
+print "Length:", len(names)
+print "First:", names[0]
+print "Last:", names[-1]
+
+// Sorting (manual — bubble sort)
+fn bubble_sort(lst) {
+    n = len(lst)
+    i = 0
+    while i < n {
+        j = 0
+        while j < n - i - 1 {
+            if lst[j] > lst[j + 1] {
+                tmp = lst[j]
+                lst[j] = lst[j + 1]
+                lst[j + 1] = tmp
+            }
+            j += 1
+        }
+        i += 1
+    }
+    return lst
+}
+
+nums = [64, 34, 25, 12, 22, 11, 90]
+print "Unsorted:", nums
+sorted_nums = bubble_sort(nums)
+print "Sorted:  ", sorted_nums
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 8: Cyber Forensics Builtins
+// ══════════════════════════════════════════════════════════
+print "[ 8 ] CYBER FORENSICS BUILTINS"
+print "-" * 40
+
+// IP Analysis
+test_ips = ["192.168.1.1", "8.8.8.8", "10.0.0.5", "172.16.1.1", "203.0.113.99"]
+print "IP Analysis:"
+for ip in test_ips {
+    is_priv = ip.is_private(ip)
+    // Note: ip.is_private is builtin, use directly
+}
+
+for ip in test_ips {
+    if ip.is_valid(ip) {
+        if ip.is_private(ip) {
+            print "  [PRIVATE]", ip
+        } else {
+            print "  [PUBLIC] ", ip
+        }
+    }
+}
+
+// Hashing
+sample = "critical_malware_payload_2026"
+print ""
+print "Hashing sample:", sample
+print "  MD5:    ", hash.md5(sample)
+print "  SHA1:   ", hash.sha1(sample)
+print "  SHA256: ", hash.sha256(sample)
+
+// Port profiling
+print ""
+print "Port Risk Profiling:"
+high_risk_ports = [23, 445, 3389, 6379, 9200]
+for port in high_risk_ports {
+    svc  = net.port_name(port)
+    risk = net.port_risk(port)
+    print "  Port", port, "(" + svc + "):", risk
+}
+
+// Log Attack Detection
+print ""
+print "Attack Vector Detection:"
+logs = [
+    "GET /index.php?id=1' OR '1'='1 HTTP/1.1",
+    "<script>alert('XSS')</script>",
+    "GET /../../../../etc/passwd HTTP/1.1",
+    "cmd.exe /c whoami",
+    "GET /index.html HTTP/1.1"
+]
+for log_line in logs {
+    attack = log.detect_attack(log_line)
+    if len(attack) > 0 {
+        print "  [ATTACK]  ", attack
+    } else {
+        print "  [CLEAN]   Benign request"
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// SECTION 9: Structured Alerts & Timelines
+// ══════════════════════════════════════════════════════════
+print ""
+print "[ 9 ] STRUCTURED ALERTS & TIMELINE"
+print "-" * 40
+
+timeline("INVESTIGATION_START", "Full system scan initiated by analyst")
+alert("CRITICAL", "Ransomware IOC Detected", "SHA256 matches known WannaCry payload")
+alert("WARNING", "Suspicious Port Open", "VNC port 5900 exposed to public internet")
+alert("INFO", "Scan Complete", "3 hosts analysed, 1 critical finding")
+timeline("INVESTIGATION_END", "Findings documented. Containment recommended.")
+print ""
+
+// ══════════════════════════════════════════════════════════
+// SECTION 10: Type System
+// ══════════════════════════════════════════════════════════
+print "[ 10 ] TYPE CONVERSION & INTROSPECTION"
+print "-" * 40
+
+print "int('100') =", int("100"), " type:", type(int("100"))
+print "float('3.14') =", float("3.14"), "type:", type(float("3.14"))
+print "str(999) =", str(999), " type:", type(str(999))
+print "bool(0) =", bool(0), "  type:", type(bool(0))
+print "bool(1) =", bool(1), "  type:", type(bool(1))
+print "bool('hi') =", bool("hi"), " type:", type(bool("hi"))
+
+print ""
+print "=" * 60
+print "    All features demonstrated successfully!"
+print "    RDX — Syntax-Free, Human-First, Standalone."
+print "=" * 60

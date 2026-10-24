@@ -1,0 +1,91 @@
+// ============================================================
+//  functions_demo.rdx — User-defined functions in RDX
+//  Demonstrates: fn definitions, parameters, return values,
+//  recursion, closures, and calling convention.
+//
+//  Run: rdx examples/functions_demo.rdx
+// ============================================================
+
+// ── 1. Basic function ──────────────────────────────────────
+fn greet(name) {
+    return "Hello, " + name + "!"
+}
+
+print greet("Alice")
+print greet("Bob")
+
+// ── 2. Function with multiple parameters ──────────────────
+fn add(a, b) {
+    return a + b
+}
+
+result = add(10, 25)
+print "10 + 25 =", result
+
+// ── 3. Recursive function ─────────────────────────────────
+fn factorial(n) {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+print "5! =", factorial(5)
+print "10! =", factorial(10)
+
+// ── 4. Fibonacci (recursive) ──────────────────────────────
+fn fib(n) {
+    if n <= 0 { return 0 }
+    if n == 1 { return 1 }
+    return fib(n - 1) + fib(n - 2)
+}
+
+print "Fibonacci sequence:"
+for i in range(12) {
+    print "  fib(" + str(i) + ") = " + str(fib(i))
+}
+
+// ── 5. Function returning a string ────────────────────────
+fn classify_port(port) {
+    svc  = net.port_name(port)
+    risk = net.port_risk(port)
+    return "Port " + str(port) + " (" + svc + ") -> " + risk
+}
+
+print ""
+print "=== Port Risk Classification ==="
+print classify_port(22)
+print classify_port(445)
+print classify_port(3389)
+print classify_port(80)
+
+// ── 6. BMI calculator function ────────────────────────────
+fn bmi(weight_kg, height_m) {
+    bmi_val = weight_kg / (height_m * height_m)
+    category = "Unknown"
+    if bmi_val < 18.5 {
+        category = "Underweight"
+    } elif bmi_val < 25.0 {
+        category = "Normal weight"
+    } elif bmi_val < 30.0 {
+        category = "Overweight"
+    } else {
+        category = "Obese"
+    }
+    return str(bmi_val) + " [" + category + "]"
+}
+
+print ""
+print "=== BMI Calculator ==="
+print "BMI (70kg, 1.75m):", bmi(70.0, 1.75)
+print "BMI (90kg, 1.70m):", bmi(90.0, 1.70)
+
+// ── 7. Function using math builtins ───────────────────────
+fn hypotenuse(a, b) {
+    return math.sqrt(a * a + b * b)
+}
+
+print ""
+print "=== Pythagorean Theorem ==="
+print "Hypotenuse(3, 4) =", hypotenuse(3.0, 4.0)
+print "Hypotenuse(5, 12) =", hypotenuse(5.0, 12.0)

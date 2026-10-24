@@ -1,6 +1,6 @@
 /*
  * ============================================================================
- *  rdx_engine.h  —  RDX Syntax-Free Execution Engine & Cyber Forensics Runtime
+ *  rdx_engine.h  —  RDX Syntax-Free Execution Engine (v3.0)
  * ============================================================================
  */
 
@@ -30,35 +30,36 @@ typedef struct {
 } RdxList;
 
 typedef struct {
-    char         name[64];
-    char         params[8][64];
-    int          param_count;
-    int          body_stmt_start;
-    int          body_stmt_count;
+    char name[64];
+    char params[8][64];
+    int  param_count;
+    int  body_stmt_start;
+    int  body_stmt_count;
 } RdxFunc;
 
 typedef struct RdxVal {
     ValType type;
     union {
-        bool    bval;
-        int64_t ival;
-        double  fval;
-        char   *sval;
-        RdxList*lval;
-        RdxFunc*fnval;
+        bool     bval;
+        int64_t  ival;
+        double   fval;
+        char    *sval;
+        RdxList *lval;
+        RdxFunc *fnval;
     } as;
 } RdxVal;
 
-/* Scope / Symbol Environment */
+/* Scope / Symbol Table — enlarged to 512 vars per scope */
 typedef struct {
     char   name[64];
     RdxVal val;
 } RdxVar;
 
 typedef struct RdxScope {
-    RdxVar           vars[256];
+    RdxVar           vars[512];
     int              var_count;
     struct RdxScope *parent;
+    bool             is_boundary;
 } RdxScope;
 
 /* Public API */

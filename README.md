@@ -1,4 +1,4 @@
-# RDX Forensics & Cyber Investigation Language
+# RDX Forensics & Cyber Investigation Language (v3.0)
 
 > **The Syntax-Free, Human-First Standalone Language for Incident Response, Threat Hunting, and Network Forensics.**
 
@@ -6,6 +6,19 @@
 [![Syntax-Free](https://img.shields.io/badge/Syntax-Free_%26_Zero--Boilerplate-blue)](#syntax-free-philosophy)
 [![Diagnostics](https://img.shields.io/badge/Diagnostics-Where_%26_Why-orange)](#the-where--why-diagnostic-engine)
 [![Cyber Forensics](https://img.shields.io/badge/Domain-Cyber_Investigation-crimson)](#built-in-cyber-forensics-primitives)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-success)](#zero-dependencies)
+
+---
+
+## 📚 Documentation Index
+
+| Guide | Description |
+|---|---|
+| 📖 **[INSTALLATION.md](file:///c:/Users/admin/Downloads/rdx-lang/INSTALLATION.md)** | Step-by-step setup for Windows, Linux & macOS with zero external dependencies |
+| 💻 **[PROGRAMS.md](file:///c:/Users/admin/Downloads/rdx-lang/PROGRAMS.md)** | 12 real-world end-to-end runnable programs with terminal outputs & walkthroughs |
+| ⚡ **[FEATURES.md](file:///c:/Users/admin/Downloads/rdx-lang/FEATURES.md)** | Comprehensive technical breakdown of all language features, functions & builtins |
+| 🚀 **[FUTURES.md](file:///c:/Users/admin/Downloads/rdx-lang/FUTURES.md)** | Strategic architectural roadmap (v3.5 - v5.0: PCAP, Bytecode VM, Wasm, Self-hosting) |
+| 💡 **[CORE_PROBLEMS_SOLVED.md](file:///c:/Users/admin/Downloads/rdx-lang/CORE_PROBLEMS_SOLVED.md)** | Analysis of dependency hell, boilerplate tax, and cryptic error messages solved by RDX |
 
 ---
 
@@ -18,11 +31,10 @@ During an active cybersecurity breach or ransomware outbreak at 3:00 AM, Securit
    To check whether an IP is in a subnet or hash a malicious payload in Python, an analyst must import `re`, `ipaddress`, `hashlib`, `socket`, and handle numerous edge cases. A minor typo or type mismatch results in a 40-line traceback (`TypeError: '>' not supported between instances...` or `KeyError: 'src_ip'`) right in the middle of a live containment effort.
 2. **Bash is Brittle and Platform-Dependent**:
    Analysts string together fragile pipelines of `grep -E`, `awk`, `sed`, and `sort | uniq -c`. These pipelines break on spaces, fail on Windows environments, and become impossible to maintain for complex investigative logic.
-3. **SIEM Query Languages (KQL, SPL) Lack Dynamic Execution**:
-   Query languages can search indexed logs in the cloud, but they cannot perform active socket checks, local file hashing, or custom automated forensic triage logic on an endpoint.
+3. **Dependency Hell & Air-Gapped Failures**:
+   Most enterprise security environments are air-gapped without internet access. Languages that depend on `pip install`, `npm install`, or JVM runtimes cannot be installed or updated during an active emergency.
 
 ### The RDX Solution:
-**RDX is uniquely purpose-built for Cyber Investigation and Network Forensics:**
 * **Syntax-Free & Zero-Friction:** No boilerplate classes, no `fn main()`, no mandatory type declarations, and semicolons are completely optional. Code executes immediately from top to bottom.
 * **Human-First "Where & Why" Diagnostics:** If you make a typo or logical mistake, RDX highlights the exact line with visual caret pointers (`^^^^`), tells you in plain English **WHERE** the issue is, **WHY** it happened, and provides an actionable **FIX** suggestion with fuzzy typo detection.
 * **Native Forensic Primitives:** IP parsing, CIDR subnet matching, MD5/SHA-256 cryptographic hashing, attack signature detection (SQLi, XSS, Path Traversal, RCE), and network port exposure profiling are all native language features.
@@ -32,7 +44,7 @@ During an active cybersecurity breach or ransomware outbreak at 3:00 AM, Securit
 
 ## 2. Syntax-Free Philosophy
 
-RDX gets out of your way. Write forensic logic as naturally as you think:
+RDX gets out of your way. Write forensic and general-purpose logic as naturally as you think:
 
 ```rdx
 // Simple, syntax-free investigation
@@ -63,12 +75,13 @@ if len(attack) > 0 {
 * **Optional semicolons:** Use newlines or semicolons interchangeably.
 * **Dynamic, safe typing:** Assign numbers, strings, lists, or booleans without boilerplate type annotations.
 * **Compound conditions:** Use `&&`, `||`, `and`, or `or`.
+* **String Multiplication:** `"#" * 50` creates horizontal rule lines instantly.
 
 ---
 
 ## 3. The "Where & Why" Diagnostic Engine
 
-When writing code under pressure, cryptic compiler error messages waste valuable time. RDX includes a revolutionary diagnostic engine that explains errors in plain human language.
+When writing code under pressure, cryptic compiler error messages waste valuable time. RDX includes an advanced diagnostic engine that explains errors in plain human language.
 
 ### Real Example: Variable Typo Detection
 
@@ -99,156 +112,120 @@ RDX immediately displays:
 ╰────────────────────────────────────────────────────────────────────────
 ```
 
-### Real Example: Function Typo Detection
-
-If you accidentally call `hash.sha257` instead of `hash.sha256`:
-
-```text
-╭─── [RDX DIAGNOSTIC: NAME ERROR] ────────────────────────────────────────
-│ File:     malware_scan.rdx
-│ Location: Line 2, Column 5
-├────────────────────────────────────────────────────────────────────────
-│    2 |  h = hash.sha257(sample)
-│      |      ^^^^^^^^^^^
-├────────────────────────────────────────────────────────────────────────
-│ WHERE: Line 2, Column 5 in 'malware_scan.rdx'
-│ WHY:   Unknown function or procedure 'hash.sha257'.
-│ FIX:   Did you mean 'hash.sha256'? Check spelling and try again.
-╰────────────────────────────────────────────────────────────────────────
-```
-
 ---
 
-## 4. Built-in Cyber Forensics Primitives
+## 4. Built-in Cyber Forensics Modules
 
-All functions are built directly into the standalone RDX binary with zero external library requirements.
+RDX includes a battery of built-in cybersecurity primitives directly inside the executable:
 
-### IPv4 & CIDR Network Subnet Math
-| Function | Description | Example |
-| :--- | :--- | :--- |
-| `ip.is_valid(ip)` | Validates IPv4 address format (0-255 octets) | `ip.is_valid("192.168.1.1") => true` |
-| `ip.is_private(ip)` | Checks RFC 1918 private subnets (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, loopback) | `ip.is_private("10.5.0.1") => true` |
-| `ip.is_public(ip)` | Checks if IP is a public Internet-routable address | `ip.is_public("8.8.8.8") => true` |
-| `ip.is_loopback(ip)` | Checks if IP is 127.0.0.0/8 | `ip.is_loopback("127.0.0.1") => true` |
-| `ip.in_subnet(ip, cidr)` | Fast bitmask matching of an IP against a CIDR block | `ip.in_subnet("192.168.1.45", "192.168.1.0/24") => true` |
-| `ip.octets(ip)` | Returns octets as a list `[o1, o2, o3, o4]` | `ip.octets("10.0.4.1") => [10, 0, 4, 1]` |
-
-### Cryptographic Hashes (Text & Disk Files)
-| Function | Description | Example |
-| :--- | :--- | :--- |
-| `hash.md5(str)` | Fast pure C MD5 hash | `hash.md5("payload")` |
-| `hash.sha1(str)` | Fast pure C SHA-1 hash | `hash.sha1("cert_data")` |
-| `hash.sha256(str)` | Fast pure C SHA-256 hash | `hash.sha256("sample_binary")` |
-| `hash.file_md5(path)` | Computes MD5 of a file on disk | `hash.file_md5("malware.bin")` |
-| `hash.file_sha256(path)` | Computes SHA-256 of a file on disk | `hash.file_sha256("C:\\temp\\agent.exe")` |
-| `hash.match(h1, h2)` | Case-insensitive constant-time hash comparison | `hash.match(h1, known_ioc)` |
-
-### Network Port Risk & Attack Surface Profiler
-| Function | Description | Example |
-| :--- | :--- | :--- |
-| `net.port_name(port)` | Maps port to service (22->SSH, 445->SMB, 3389->RDP) | `net.port_name(3389) => "RDP"` |
-| `net.port_risk(port)` | Evaluates exposure risk profile (CRITICAL, HIGH, MEDIUM, LOW) | `net.port_risk(445) => "CRITICAL (Lateral Movement / EternalBlue Surface)"` |
-
-### Forensic Log & Attack Vector Extraction
-| Function | Description | Example |
-| :--- | :--- | :--- |
-| `log.extract_ip(line)` | Extracts IPv4 address from anywhere in a log string | `log.extract_ip("Failed password from 203.0.113.5") => "203.0.113.5"` |
-| `log.extract_url(line)` | Extracts HTTP/HTTPS URL from log text | `log.extract_url("Referer: https://malicious.org/payload")` |
-| `log.extract_cve(line)` | Extracts CVE identifiers (e.g., CVE-2024-38077) | `log.extract_cve("Exploiting CVE-2024-12345 in service")` |
-| `log.extract_status(line)`| Extracts HTTP response codes (200, 403, 404, 500) | `log.extract_status("HTTP/1.1 500 Internal Error") => 500` |
-| `log.detect_attack(line)` | Heuristic detection for SQLi, XSS, Path Traversal, and RCE | Detects `' OR '1'='1`, `<script>`, `../..`, `/bin/sh`, etc. |
-
-### Incident Alerting & Chronological Timelines
-| Function | Description |
-| :--- | :--- |
-| `alert(level, summary, detail)` | Outputs structured, color-coded security alerts (`[CRITICAL]`, `[ALERT]`, `[WARNING]`, `[INFO]`) with timestamps. |
-| `timeline(event_name, detail)` | Emits structured chronological audit trail entries for forensics reports. |
-
----
-
-## 5. Standalone Architecture
-
-RDX is completely self-contained:
-* **No External Runtime:** Does NOT require Python, Node.js, Ruby, or JVM.
-* **No External Compiler:** You do not need GCC, Clang, or MSVC installed to run `.rdx` files. The `rdx.exe` binary directly tokenizes, checks, and executes your scripts.
-* **Zero DLL Hell:** The binary is statically compiled for Windows (and Linux via `make`).
-
-### Running a Script:
-```cmd
-rdx examples\cyber_incident_triage.rdx
-```
-or explicitly:
-```cmd
-rdx run examples\cyber_incident_triage.rdx
-```
-
-### Interactive Cyber REPL:
-Launch `rdx` with no arguments to enter the live forensic shell:
-```text
-rdx
-```
-```text
-+==============================================================+
-|  RDX Forensics & Cyber Security Language v2.5 [Standalone]    |
-|  Syntax-Free * Zero-Friction * Built-in Threat & Net Engine   |
-+==============================================================+
-Type 'help' for cybersecurity commands, or 'exit' to quit.
-
-rdx> ip.is_private("10.0.0.1")
-true
-rdx> hash.sha256("threat_beacon")
-84b2c140c8859ff1b3127dd08c90b638fae546de32130095a5f7823ce9723ec5
-rdx> net.port_risk(3389)
-CRITICAL (Remote Desktop / Ransomware Entry)
-```
-
----
-
-## 6. End-to-End Investigation Walkthrough
-
-Here is a complete forensic investigation script in action (`examples\cyber_incident_triage.rdx`):
-
+### Network & IP Intelligence
 ```rdx
-timeline("INCIDENT_TRIGGER", "SOC alert received for suspicious outbound beaconing")
-
-case_id = "INC-2026-8942"
-target_subnet = "10.0.4.0/24"
-
-print "=== RDX INCIDENT TRIAGE REPORT ==="
-print "Case ID: " + case_id
-
-// 1. Audit Suspect Connections
-suspect_ips = ["10.0.4.52", "192.168.1.1", "203.0.113.88"]
-for host in suspect_ips {
-    if ip.in_subnet(host, target_subnet) {
-        alert("CRITICAL", "COMPROMISED INTERNAL HOST DETECTED", "Internal machine " + host + " is beaconing")
-    }
-}
-
-// 2. Scan Exposed Attack Surface
-ports_to_check = [22, 445, 3389]
-for p in ports_to_check {
-    svc = net.port_name(p)
-    risk = net.port_risk(p)
-    print "Port " + p + " (" + svc + ") -> " + risk
-}
-
-// 3. Payload Signature Verification
-captured_string = "mimikatz_dump_lsass_memory_payload"
-malware_hash = hash.sha256(captured_string)
-print "Computed Payload SHA-256: " + malware_hash
-
-timeline("TRIAGE_COMPLETE", "Forensic evidence gathered. Containment actions recommended.")
+ip.is_valid("192.168.1.1")          // true
+ip.is_private("10.0.0.5")           // true (RFC 1918)
+ip.is_public("8.8.8.8")             // true
+ip.is_loopback("127.0.0.1")         // true
+ip.in_subnet("10.5.2.1", "10.5.0.0/16") // true
+ip.octets("192.168.1.1")            // [192, 168, 1, 1]
 ```
 
-**Output:**
+### Cryptographic Hashing
+```rdx
+hash.md5("sample")                  // MD5 digest
+hash.sha1("sample")                 // SHA-1 digest
+hash.sha256("sample")               // SHA-256 digest
+hash.file_sha256("payload.bin")     // Disk file SHA-256
+hash.match(hash1, hash2)            // Constant-time comparison
+```
+
+### Port Risk Profiling
+```rdx
+net.port_name(445)                  // "SMB"
+net.port_risk(445)                  // "CRITICAL (Lateral Movement / EternalBlue Surface)"
+net.port_risk(3389)                 // "CRITICAL (Remote Desktop / Ransomware Entry)"
+net.port_risk(22)                   // "MEDIUM (Brute Force Target)"
+```
+
+### Log Attack Extraction
+```rdx
+log.extract_ip(log_line)            // Extracts IPv4 from text
+log.extract_url(log_line)           // Extracts URL from text
+log.extract_status(log_line)        // Extracts HTTP status code
+log.detect_attack(log_line)         // Detects SQLi, XSS, Path Traversal, RCE
+```
+
+### Incident Alerts & Timelines
+```rdx
+timeline("EVENT_NAME", "Event description")
+alert("CRITICAL", "Summary headline", "Detailed incident findings")
+```
+
+---
+
+## 5. Standard Programming Features (v3.0)
+
+Beyond cybersecurity, RDX v3.0 is a complete general-purpose programming language:
+
+### User-Defined Functions (`fn`)
+```rdx
+fn fibonacci(n) {
+    if n <= 0 { return 0 }
+    if n == 1 { return 1 }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+print "Fibonacci(10) =", fibonacci(10)
+```
+
+### String Methods
+```rdx
+msg = "  RDX Language  "
+print msg.trim().upper()             // "RDX LANGUAGE"
+print msg.contains("Lang")          // true
+print msg.replace("Language", "v3") // "  RDX v3  "
+parts = "a,b,c".split(",")          // ["a", "b", "c"]
+joined = str.join("-", parts)       // "a-b-c"
+```
+
+### Math Library
+```rdx
+print math.sqrt(25)                 // 5
+print math.pow(2, 8)                // 256
+print math.abs(-42)                 // 42
+print math.min(10, 20)              // 10
+print math.max(10, 20)              // 20
+print math.sin(0)                   // 0
+```
+
+### Dynamic Lists & In-Place Mutation
+```rdx
+items = [64, 34, 25, 12, 22]
+append(items, 99)
+items[0] = 100
+print "First:", items[0], "Last:", items[-1]
+```
+
+### Interactive Console (`input()`)
+```rdx
+name = input("Enter investigator name: ")
+print "Welcome, Agent", name
+```
+
+---
+
+## 6. Real-World Showcase: Cyber Incident Response
+
+Run the complete built-in incident response demonstration:
+
+```bash
+rdx examples/cyber_incident_triage.rdx
+```
+
+Output:
 ```text
-  [21:16:40] -> INCIDENT_TRIGGER         | SOC alert received for suspicious outbound beaconing
-=== RDX INCIDENT TRIAGE REPORT ===
-Case ID: INC-2026-8942
+  [21:16:40] -> INCIDENT_START           | Security Incident #2026-049 Detected
+Target Investigated: 10.0.4.52
 
 ================== [CRITICAL] ==================
-  TIMESTAMP: 2026-10-20 21:16:40
+  TIMESTAMP: 2026-10-24 12:35:51
   SEVERITY:  CRITICAL
   SUMMARY:   COMPROMISED INTERNAL HOST DETECTED
   DETAILS:   Internal machine 10.0.4.52 is beaconing
@@ -265,41 +242,48 @@ Computed Payload SHA-256: 44bf2a665fc1468b8591a2adcc2d9e44916a7979ac859576257293
 
 ---
 
-## 7. Scope & Roadmap
+## 7. Interactive REPL
 
-RDX Forensics is focused on delivering the most ergonomic, reliable, and expressive environment for security engineers:
+Launch `rdx` without arguments to access the interactive REPL:
 
-1. **Phase 1 (Complete):**
-   - [x] Syntax-free engine with optional semicolons and top-level execution.
-   - [x] Human-first "Where & Why" diagnostic engine with visual carets and Levenshtein fuzzy suggestions.
-   - [x] Native IP/CIDR bitmask operations.
-   - [x] Pure C MD5, SHA-1, SHA-256 hashing (text and disk files).
-   - [x] Port surface risk classification and log attack heuristics (SQLi, XSS, Path Traversal, RCE).
-   - [x] 100% Standalone binary (`rdx.exe`) with interactive REPL.
+```bash
+rdx
+```
 
-2. **Phase 2 (Upcoming Scope):**
-   - [ ] Native PCAP parser (inspecting packet headers, TCP flags, and DNS queries without Wireshark).
-   - [ ] YARA rule parser integration (pattern matching file dumps in 1 line).
-   - [ ] Automated STIX/TAXII Threat Intelligence feed ingestion.
-   - [ ] Windows Event Log (EVTX) binary chunk reader.
+```text
+╔══════════════════════════════════════════════════════════════╗
+║  RDX Language REPL  v3.0.0  [Standalone, Zero-Dependency]   ║
+║  Syntax-Free · Human-First · Cyber Forensics Built-In       ║
+╚══════════════════════════════════════════════════════════════╝
+  Type 'help' for commands | 'exit' or 'quit' to leave
+
+rdx> ip = "10.0.0.1"
+rdx> print "Is private:", ip.is_private(ip)
+Is private: true
+rdx> print hash.sha256("test")
+9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+rdx> exit
+Goodbye from RDX!
+```
 
 ---
 
 ## 8. Building from Source
 
-To rebuild the standalone binary from source:
+RDX builds on any platform in seconds with zero external libraries:
 
-**On Windows:**
+### Windows:
 ```cmd
 build.bat
 ```
 
-**On Linux / macOS:**
+### Linux / macOS:
 ```bash
 make
+sudo make install
 ```
 
 ---
 
 ### License
-RDX is released under the MIT Open Source License.
+RDX is released under the **MIT Open Source License**. Free for personal, academic, and enterprise security operations.

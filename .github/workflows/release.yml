@@ -30,15 +30,15 @@ jobs:
       - name: Build Binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          gcc -std=c11 -O2 -mconsole -static -s -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c
-          Compress-Archive -Path rdx.exe, README.md, LICENSE, examples -DestinationPath ${{ matrix.artifact_name }}
+          gcc -std=c11 -O3 -mconsole -static -s -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c -lm
+          Compress-Archive -Path rdx.exe, install.bat, install.ps1, uninstall.bat, README.md, INSTALLATION.md, PROGRAMS.md, FEATURES.md, LICENSE, examples -DestinationPath ${{ matrix.artifact_name }}
 
       - name: Build Binary (Linux)
         if: runner.os == 'Linux'
         run: |
           make
           strip rdx
-          tar -czvf ${{ matrix.artifact_name }} rdx README.md LICENSE examples/
+          tar -czvf ${{ matrix.artifact_name }} rdx Makefile README.md INSTALLATION.md PROGRAMS.md FEATURES.md LICENSE examples/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

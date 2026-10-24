@@ -37,6 +37,7 @@ jobs:
         run: |
           ./rdx examples/cyber_incident_triage.rdx
           ./rdx examples/network_threat_hunt.rdx
+          ./rdx examples/complete_showcase.rdx
 
       - name: Verify "Where & Why" Diagnostic Engine (Ubuntu)
         if: runner.os == 'Linux'
@@ -52,7 +53,7 @@ jobs:
       - name: Build Standalone RDX (Windows)
         if: runner.os == 'Windows'
         run: |
-          gcc -std=c11 -O2 -mconsole -static -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c
+          gcc -std=c11 -O3 -mconsole -static -s -o rdx.exe src/main.c src/rdx_engine.c src/rdx_cyber.c src/rdx_diag.c -lm
           .\rdx.exe --version
           .\rdx.exe --help
 
@@ -61,6 +62,7 @@ jobs:
         run: |
           .\rdx.exe examples\cyber_incident_triage.rdx
           .\rdx.exe examples\network_threat_hunt.rdx
+          .\rdx.exe examples\complete_showcase.rdx
 
       - name: Verify "Where & Why" Diagnostic Engine (Windows)
         if: runner.os == 'Windows'
