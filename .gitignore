@@ -9,6 +9,7 @@
 # Whitelisted: rdx_bin.exe (release), nasm.exe (tool dependency)
 # All other .exe files are ignored
 *.exe
+!rdx.exe
 !rdx_bin.exe
 !nasm.exe
 !tests/trim_output.exe
@@ -47,4 +48,5 @@ tooling/vscode-rdx/*.vsix
 .DS_Store
 Thumbs.db
 .skill/
+skill/
 

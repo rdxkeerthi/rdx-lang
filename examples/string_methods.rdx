@@ -1,0 +1,118 @@
+// ============================================================
+//  string_methods.rdx — String operations and methods in RDX
+//  Run: rdx examples/string_methods.rdx
+// ============================================================
+
+print "=== RDX String Methods Demo ==="
+print ""
+
+// ── 1. Basic string creation ──────────────────────────────
+name = "rdx forensics language"
+print "Original:  ", name
+
+// ── 2. Case methods ───────────────────────────────────────
+print "Upper:     ", name.upper()
+print "Lower:     ", name.lower()
+
+// ── 3. Trim whitespace ────────────────────────────────────
+padded = "  Hello World  "
+print "Padded:    '" + padded + "'"
+print "Trimmed:   '" + padded.trim() + "'"
+
+// ── 4. String length ──────────────────────────────────────
+sentence = "Cyber investigation"
+print "Length of '" + sentence + "':", sentence.len()
+
+// ── 5. Contains check ─────────────────────────────────────
+log = "Failed password for root from 192.168.1.100"
+print ""
+print "=== Contains Check ==="
+print "Log line:", log
+print "Contains 'Failed password':", log.contains("Failed password")
+print "Contains 'SQLi':", log.contains("SQLi")
+
+// ── 6. Starts / Ends with ─────────────────────────────────
+url = "https://malicious.example.com/payload.exe"
+print ""
+print "=== Starts / Ends ==="
+print "URL:", url
+print "Starts with 'https':", url.starts("https")
+print "Starts with 'ftp':", url.starts("ftp")
+print "Ends with '.exe':", url.ends(".exe")
+print "Ends with '.pdf':", url.ends(".pdf")
+
+// ── 7. Replace ────────────────────────────────────────────
+redacted = "User password is: SecretPass123"
+clean = redacted.replace("SecretPass123", "[REDACTED]")
+print ""
+print "=== Replace ==="
+print "Original:", redacted
+print "Redacted:", clean
+
+// ── 8. Split ──────────────────────────────────────────────
+csv = "10.0.0.1,10.0.0.2,10.0.0.3,10.0.0.4"
+parts = csv.split(",")
+print ""
+print "=== Split CSV ==="
+print "CSV:", csv
+print "Parts:", parts
+print "First IP:", parts[0]
+print "Last IP:", parts[len(parts) - 1]
+
+// ── 9. Find / Index ───────────────────────────────────────
+haystack = "User alice connected from 203.0.113.5 at 14:25:08"
+pos = haystack.find("203.0")
+print ""
+print "=== Find ==="
+print "Log:", haystack
+print "Position of '203.0':", pos
+
+// ── 10. Substring / Slice ─────────────────────────────────
+header = "GET /admin?id=1 HTTP/1.1"
+method = header.substr(0, 3)
+path = header.substr(4, 12)
+print ""
+print "=== Substr ==="
+print "HTTP line:", header
+print "Method:", method
+print "Path:", path
+
+// ── 11. String concatenation with + ───────────────────────
+print ""
+print "=== String Building ==="
+first_name = "Jane"
+last_name = "Doe"
+full_name = first_name + " " + last_name
+greeting = "Hello, " + full_name + "!"
+print greeting
+
+// ── 12. String repetition with * ──────────────────────────
+separator = "=" * 40
+print separator
+banner = "-" * 10 + " REPORT " + "-" * 10
+print banner
+print separator
+
+// ── 13. Type conversion ───────────────────────────────────
+print ""
+print "=== Type Conversions ==="
+num_str = "42"
+num_val = int(num_str)
+print "str '42' to int:", num_val, "(type:", type(num_val) + ")"
+
+flt_val = float("3.14")
+print "str '3.14' to float:", flt_val, "(type:", type(flt_val) + ")"
+
+back_to_str = str(12345)
+print "int 12345 to str:", back_to_str, "(type:", type(back_to_str) + ")"
+
+// ── 14. str.join ──────────────────────────────────────────
+print ""
+print "=== Join ==="
+words = ["RDX", "is", "human", "first"]
+joined = str.join(" ", words)
+print "Joined:", joined
+
+ips = ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+ip_list = str.join(", ", ips)
+print "IPs:", ip_list

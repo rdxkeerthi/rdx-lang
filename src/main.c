@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RDX_VERSION "v2.5.0-forensics"
+#define RDX_VERSION "v3.0.0"
 
 static void print_banner(void) {
     printf("\033[1;36m");
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0) {
-        printf("RDX Forensics Language %s (Standalone Win64)\n", RDX_VERSION);
+        printf("RDX Language %s [Standalone Native Runtime]\n", RDX_VERSION);
         return 0;
     }
 

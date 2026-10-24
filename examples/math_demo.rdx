@@ -1,0 +1,133 @@
+// ============================================================
+//  math_demo.rdx — Math operations and math.* builtins in RDX
+//  Run: rdx examples/math_demo.rdx
+// ============================================================
+
+print "=== RDX Math Demonstration ==="
+print ""
+
+// ── 1. Basic arithmetic ───────────────────────────────────
+print "--- Arithmetic ---"
+print "5 + 3 =", 5 + 3
+print "10 - 4 =", 10 - 4
+print "6 * 7 =", 6 * 7
+print "15 / 4 =", 15 / 4
+print "15.0 / 4 =", 15.0 / 4
+print "17 % 5 =", 17 % 5
+
+// ── 2. Float arithmetic ───────────────────────────────────
+print ""
+print "--- Float Arithmetic ---"
+pi = 3.14159265
+r = 5.0
+area = pi * r * r
+circumf = 2.0 * pi * r
+print "Circle radius:", r
+print "Area:", area
+print "Circumference:", circumf
+
+// ── 3. Math builtins ──────────────────────────────────────
+print ""
+print "--- math.* Builtins ---"
+print "math.sqrt(144) =", math.sqrt(144)
+print "math.sqrt(2.0) =", math.sqrt(2.0)
+print "math.pow(2, 10) =", math.pow(2, 10)
+print "math.pow(3, 3) =", math.pow(3, 3)
+print "math.abs(-42) =", math.abs(-42)
+print "math.abs(42) =", math.abs(42)
+print "math.floor(3.9) =", math.floor(3.9)
+print "math.ceil(3.1) =", math.ceil(3.1)
+print "math.round(3.5) =", math.round(3.5)
+print "math.round(4.4) =", math.round(4.4)
+print "math.min(10, 20) =", math.min(10, 20)
+print "math.max(10, 20) =", math.max(10, 20)
+
+// ── 4. Trigonometry ───────────────────────────────────────
+print ""
+print "--- Trigonometry ---"
+pi_val = 3.14159265358979
+print "math.sin(0) =", math.sin(0)
+print "math.cos(0) =", math.cos(0)
+print "math.sin(pi/2) approx:", math.sin(pi_val / 2.0)
+print "math.cos(pi) approx:", math.cos(pi_val)
+
+// ── 5. Augmented assignment ───────────────────────────────
+print ""
+print "--- Augmented Assignment ---"
+x = 10
+print "x starts at:", x
+x += 5;  print "x += 5 =>", x
+x -= 3;  print "x -= 3 =>", x
+x *= 4;  print "x *= 4 =>", x
+x /= 6;  print "x /= 6 =>", x
+x %= 7;  print "x %= 7 =>", x
+
+// ── 6. Number guessing demo ───────────────────────────────
+print ""
+print "--- Fibonacci using Binet's formula ---"
+fn fib_binet(n) {
+    phi = (1.0 + math.sqrt(5.0)) / 2.0
+    return math.round(math.pow(phi, n) / math.sqrt(5.0))
+}
+
+for i in range(1, 16) {
+    print "  fib(" + str(i) + ") =", fib_binet(float(i))
+}
+
+// ── 7. Prime checker ──────────────────────────────────────
+print ""
+print "--- Prime Number Check ---"
+
+fn is_prime(n) {
+    if n < 2 { return false }
+    if n == 2 { return true }
+    if n % 2 == 0 { return false }
+    i = 3
+    while i * i <= n {
+        if n % i == 0 { return false }
+        i += 2
+    }
+    return true
+}
+
+primes = []
+for i in range(2, 50) {
+    if is_prime(i) {
+        append(primes, i)
+    }
+}
+print "Primes under 50:", primes
+
+// ── 8. Statistics functions ───────────────────────────────
+print ""
+print "--- Statistics ---"
+
+fn sum_list(lst) {
+    total = 0
+    for v in lst { total += v }
+    return total
+}
+
+fn average(lst) {
+    if len(lst) == 0 { return 0.0 }
+    return float(sum_list(lst)) / float(len(lst))
+}
+
+fn variance(lst) {
+    avg = average(lst)
+    s = 0.0
+    for v in lst {
+        diff = float(v) - avg
+        s += diff * diff
+    }
+    return s / float(len(lst))
+}
+
+data = [12, 45, 7, 89, 34, 56, 23, 78, 11, 67]
+print "Data:", data
+print "Sum:", sum_list(data)
+print "Average:", average(data)
+print "Variance:", variance(data)
+print "Std Dev:", math.sqrt(variance(data))
+print "Min:", math.min(data[0], data[1])
+print "Max:", math.max(data[0], data[1])
