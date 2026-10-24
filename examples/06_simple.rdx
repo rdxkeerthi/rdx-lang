@@ -1,10 +1,11 @@
-sys.rdx {
-    // all 5 data types
-    num count = 42
-    chr name = "Alice"
-    flt ratio = 3.14
-    blo flag = true
-    dob exact = 3.141592
+// Basic Data Types & Printing in RDX v3.0
+let count = 42
+let name = "Alice"
+let ratio = 3.14
+let flag = true
 
-    call("Values: " [count, name, ratio, flag, exact])
-}
+println("Values:")
+println("Count: " + str(count))
+println("Name:  " + name)
+println("Ratio: " + str(ratio))
+println("Flag:  " + str(flag))
