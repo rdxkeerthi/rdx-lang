@@ -66,5 +66,11 @@ jobs:
 
       - name: Verify "Where & Why" Diagnostic Engine (Windows)
         if: runner.os == 'Windows'
+        shell: bash
         run: |
-          .\rdx.exe examples\error_diagnostic_demo.rdx || echo "Diagnostic caught expected error"
+          if ./rdx.exe examples/error_diagnostic_demo.rdx; then
+            echo "Expected diagnostic error, but script passed!"
+            exit 1
+          else
+            echo "Diagnostic engine correctly caught deliberate error!"
+          fi
